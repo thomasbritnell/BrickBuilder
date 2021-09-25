@@ -1,21 +1,24 @@
-#ifdef __APPLE__
-#define GL_SILENCE_DEPRECATION
-#include <OpenGL/gl.h>
-#include <OpenGL/glu.h>
-#include <GLUT/glut.h>
-#else
+/*
+    Thomas Britnell
+    400129897
+    britnelt
+    Simple paint program using OpenGl and GLUT
+*/
+
 #include <GL/gl.h>
 #include <GL/glu.h>
 #include <GL/freeglut.h>
-#endif
 #include <iostream>
 #include <stdlib.h>
 #include <vector>
 
+
 const int WINDOW_SIZE_X = 600;
 const int WINDOW_SIZE_Y = 600;
 
+//to keep track of if the mouse is down
 bool drawing = false;
+
 
 struct Colour
 {
@@ -29,12 +32,24 @@ struct Point
     Colour c;
 };
 
+/*
+List of the current points to be be displayed to the screen.
+When the user draws, points get added to this vector.
+When the user clears, this vector is emptied.
+*/
 std::vector<Point> points;
 
+//default colour is blue
 Colour currentColour = {0.0f, 0.0f, 1.0f};
 
+//default point size for drawing
 int size = 3;
 
+/*
+registered below as the glutDisplayFunc.
+
+Iterates through a vector of points and draws them to the screen.
+*/
 void display(void)
 {
     glClear(GL_COLOR_BUFFER_BIT);
@@ -51,12 +66,21 @@ void display(void)
     glutSwapBuffers();
 }
 
+/*
+Adds the passed coordinates to the vector of points to be drawn to the screen,
+then prompts the glutDisplayFunc (via glutPostRedisplay).
+*/
 void drawPoint(int x, int y)
 {
     points.push_back({x, y, size, {currentColour.r, currentColour.g, currentColour.b}});
     glutPostRedisplay();
 }
 
+/*
+Toggles drawing mode based on if the left mouse button is pressed or not.
+Registered below as glutMouseFunc.
+
+*/
 void mouse(int btn, int state, int x, int y)
 {
 
@@ -67,26 +91,38 @@ void mouse(int btn, int state, int x, int y)
         {
             drawing = false;
         }
+        //When the mouse is clicked, draws a single point there
         if (state == GLUT_DOWN)
         {
             drawing = true;
+            //y is flipped because glut interprets the window y opposite of how it is reported by the mouse event
             drawPoint(x, WINDOW_SIZE_Y - y);
         }
     }
 }
 
+/*
+Registered as glutMotionFunc.
+Draws a continuous line of points while drawing (the left mouse button is clicked)
+*/
 void motion(int x, int y)
 {
     if (drawing)
     {
+        //y is flipped because glut interprets the window y opposite of how it is reported by the mouse event
         drawPoint(x, WINDOW_SIZE_Y - y);
     }
 }
 
+/*
+Registered below as glutKeyboardFunction.
+Handles all the keyboard inputs. 
+*/
 void kbd(unsigned char key, int x, int y)
 {
     switch (key)
     {
+        //increases the size of the points only if it is less than the max
     case '+':
         if (size < 5)
         {
@@ -99,6 +135,7 @@ void kbd(unsigned char key, int x, int y)
 
         break;
     case '-':
+        //decrements the size of the points only if it is greater than 1 
         if (size > 1)
         {
             size--;
@@ -111,8 +148,8 @@ void kbd(unsigned char key, int x, int y)
         break;
     case 'R':
     case 'r':
-        points.clear();
-        glutPostRedisplay();
+        points.clear();//clear the list of points to be displayed
+        glutPostRedisplay();//refresh
 
         break;
     case 'Q':
