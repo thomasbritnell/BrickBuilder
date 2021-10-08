@@ -18,13 +18,14 @@
 const int WINDOW_SIZE_X = 600;
 const int WINDOW_SIZE_Y = 600;
 
-const int INITIAL_POINT_COUNT = 10;
+const int INITIAL_POINT_COUNT = 100;
 
 
-int mouse_x;
-int mouse_y;
+Point2D mouse_pos = Point2D(0,0);
+
 bool left_mouse;
 bool right_mouse;
+
 
 bool running = true;
 
@@ -36,11 +37,10 @@ void display(void)
     glClear(GL_COLOR_BUFFER_BIT);
     for (Particle p : particles)
     {
-        glPointSize(p.size * 1.5f);
+        glPointSize(p.size * 2.0f);
         glBegin(GL_POINTS);
         glColor3f(p.colour.r,p.colour.g,p.colour.b);
         glVertex2f(p.position.mX, p.position.mY);
-        //std::cout<< p.position.mX << ", " << p.position.mY << std::endl;
         glEnd();
     }
 
@@ -57,7 +57,7 @@ void add_point(float x, float y){
         float x_direction = 0 ; //(rand() % 2 - 1);
         float y_direction = 0 ; //(rand() % 2 - 1);
         float range = rand() % WINDOW_SIZE_X/2 + 10;
-        float speed = rand() % 5 + 1;
+        float speed = (rand() % 5 + 1)*0.25;
         particles.push_back(
             Particle(Point2D(x,y),{r,g,b},size,Vec2D(x_direction,y_direction),range,speed)
         );
@@ -81,10 +81,22 @@ void remove_point(float x, float y){
     if (particles.size() > 0){   
         particles.erase(nearest);
     }else{
-        std::cout << "No praticles to erase!\n";
+        std::cout << "No particles to erase!\n";
     }
     
 
+}
+
+void modify_range(int delta){
+    for(auto p = (&particles)->begin(); p != (&particles)->end(); ++p)
+        {
+            if (delta < 0){
+            //subtracting from the range
+                p->range = p->range*0.8;
+            }else{
+                p->range = p->range*1.2;
+            }
+        }
 }
 
 void generatePoints()
@@ -97,23 +109,57 @@ void generatePoints()
     }
 }
 
-//returns if the particle is in the range of the mouse
 bool in_range(Point2D position,float range){
-    return ((position.mX+range >= mouse_x) || (position.mX-range <= mouse_x) &&
-            (position.mY+range >= mouse_y) || (position.mY-range <= mouse_y));
+    return position.distanceTo(mouse_pos) <= range;
 }
 
 void update_points(int x){
     if (running){
         for(auto p = (&particles)->begin(); p != (&particles)->end(); ++p)
         {
-            // if (left_mouse && in_range(p->position,p->range)){
-            //     p->direction = Vec2D(1.0,0);
-            // }
-            //std::cout << " Old: " <<p->position.mX << ", " << p->position.mY << "\n";
-            p->position = p->direction.multiply(p->speed).movePoint(p->position);
-            //p->direction = Vec2D(p->direction.mX + ,p->direction.mY + );
-            //std::cout << " New: " <<p->position.mX << ", " << p->position.mY << "\n";
+
+            Vec2D applied_force = Vec2D(0,0);
+            Vec2D acceleration = Vec2D(0,0);
+            Vec2D friction = Vec2D(0,0);
+
+            if (left_mouse && in_range(p->position,p->range)){
+                applied_force = Vec2D::createVector(mouse_pos,p->position).normalize().multiply(-0.5);
+            }else if(right_mouse && in_range(p->position, p->range)){
+                applied_force = Vec2D::createVector(mouse_pos,p->position).normalize().multiply(0.5);
+            }
+
+
+            if ((abs(p->direction.mX) >= 0.005) && (abs(p->direction.mY) >= 0.005)){
+                friction = p->direction.normalize().multiply(-0.08/p->size);
+            }else{
+                p->direction = Vec2D(0,0);
+            }
+
+            acceleration = Vec2D(applied_force.mX+friction.mX, applied_force.mY+friction.mY);
+            //std::cout<< "acceleration: " <<acceleration.mX << ", " << acceleration.mY << "\n";
+
+            //janky 'vector add' function because i dont want to modify Vec2D itself
+            p->direction = Vec2D(p->direction.mX + acceleration.mX, p->direction.mY + acceleration.mY);
+            //std::cout<< "velocity: " << p->direction.mX << ", " << p->direction.mY << "\n";
+
+            if (p->position.mX >= WINDOW_SIZE_X){
+                p->direction = Vec2D(p->direction.mX*-1,p->direction.mY);
+                p->position = Point2D(WINDOW_SIZE_X - p->size,p->position.mY);
+            }else if (p->position.mX <= 0){
+                p->direction = Vec2D(p->direction.mX*-1,p->direction.mY);
+                p->position = Point2D(0 + p->size,p->position.mY);
+            }
+
+            if (p->position.mY >= WINDOW_SIZE_Y){
+                p->direction = Vec2D(p->direction.mX,p->direction.mY*-1);
+                p->position = Point2D(p->position.mX,WINDOW_SIZE_Y - p->size);
+            }else if (p->position.mY <= 0){
+                p->direction = Vec2D(p->direction.mX,p->direction.mY*-1);
+                p->position = Point2D(p->position.mX,0 + p->size);
+            }
+
+
+            p->position = p->direction.movePoint(p->position);
         }
     }
     //glutPostRedisplay();
@@ -122,6 +168,10 @@ void update_points(int x){
 
 void mouse(int btn, int state, int x, int y)
 {
+    mouse_pos.mX = static_cast<float>(x);
+    mouse_pos.mY = static_cast<float>(WINDOW_SIZE_Y - y);
+
+    std::cout<< "mouse click: "<< mouse_pos.mX << ", " <<mouse_pos.mY <<"\n";
     if (btn == GLUT_LEFT_BUTTON)
     {
         
@@ -150,7 +200,8 @@ void mouse(int btn, int state, int x, int y)
 
 void motion(int x, int y)
 {
-
+    mouse_pos.mX = static_cast<float>(x);
+    mouse_pos.mY = static_cast<float>(WINDOW_SIZE_Y - y);
 }
 
 
@@ -170,9 +221,11 @@ void kbd(unsigned char key, int x, int y)
         break;
     case '+':
             std::cout << "increase range\n"; 
+            modify_range(1);
         break;
     case '-':
             std::cout << "decrease range\n";
+            modify_range(-1);
         break;
     case 32:
         std::cout << "Pause simulation\n";
@@ -202,9 +255,9 @@ int main(int argc, char **argv)
     gluOrtho2D(0, WINDOW_SIZE_X, 0, WINDOW_SIZE_Y);
     glutTimerFunc(17,update_points,0);
     glutKeyboardFunc(kbd);
-    //glutMotionFunc(motion);
+    glutMotionFunc(motion);
     glutDisplayFunc(display);
-    //glutMouseFunc(mouse);
+    glutMouseFunc(mouse);
     glutMainLoop();
     return (0);
 }
