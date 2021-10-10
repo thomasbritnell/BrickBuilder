@@ -12,16 +12,24 @@
 #include <stdlib.h>
 #include <vector>
 #include "particle.h"
+#include <math.h>
 #include <time.h>
 
 //initial window size
-const int WINDOW_SIZE_X = 600;
-const int WINDOW_SIZE_Y = 600;
+int window_size_x = 600;
+int window_size_y = 600;
 
-const int INITIAL_POINT_COUNT = 100;
+const int INITIAL_POINT_COUNT = 50;
 
+//the minimum speed that a particle can go before stopping
+const float MIN_SPEED = 0.005;
 
 Point2D mouse_pos = Point2D(0,0);
+
+float mouse_strength = 0.5;
+float friction_coefficient = 0.005;
+int range_factor = 5;
+
 
 bool left_mouse;
 bool right_mouse;
@@ -37,7 +45,7 @@ void display(void)
     glClear(GL_COLOR_BUFFER_BIT);
     for (Particle p : particles)
     {
-        glPointSize(p.size * 2.0f);
+        glPointSize(p.size);
         glBegin(GL_POINTS);
         glColor3f(p.colour.r,p.colour.g,p.colour.b);
         glVertex2f(p.position.mX, p.position.mY);
@@ -49,39 +57,59 @@ void display(void)
     glutPostRedisplay();
 }
 
-void add_point(float x, float y){
-        float r = (rand() % 100 + 0)*0.01;
-        float g = (rand() % 100 + 0)*0.01;
-        float b = (rand() % 100 + 0)*0.01;
-        int size = rand() % 5 + 1;
-        float x_direction = 0 ; //(rand() % 2 - 1);
-        float y_direction = 0 ; //(rand() % 2 - 1);
-        float range = rand() % WINDOW_SIZE_X/2 + 10;
+void add_point(float x, float y, bool moving = false){
+        
+       
+        float r = (rand() % 75 + 25)*0.01;
+        float g = (rand() % 75 + 25)*0.01;
+        float b = (rand() % 75 + 25)*0.01;
+        
+        int size = rand() % 20 + 2;
+        float x_direction = 0 ; 
+        float y_direction = 0 ; 
+        float range = rand() % window_size_x/2 + 10;
         float speed = (rand() % 5 + 1)*0.25;
+
+        if (moving){
+            x_direction = (rand() % 50 - 25);
+            y_direction = (rand() % 50 - 25);
+        }
+
         particles.push_back(
             Particle(Point2D(x,y),{r,g,b},size,Vec2D(x_direction,y_direction),range,speed)
         );
 }
 
-void remove_point(float x, float y){
-   
-   std::vector<Particle>::iterator nearest;
+std::vector<Particle>::iterator find_closest_particle(float x, float y){
 
-    Point2D mouse_pos = Point2D(x,y);
+    if (particles.empty()){
+        throw 505;
+    }
+    std::vector<Particle>::iterator nearest;
 
     float distance = INT_MAX;
     
+    Point2D point = Point2D(x,y);
+
    for(auto p = (&particles)->begin(); p != (&particles)->end(); ++p)
         {
-            if (p->position.fastDistanceTo(mouse_pos) <= distance){
-                distance = p->position.fastDistanceTo(mouse_pos);
+            if (p->position.fastDistanceTo(point) <= distance){
+                distance = p->position.fastDistanceTo(point);
                 nearest = p;
             }
         }
+    
+    return nearest;
+}
+
+bool remove_point(std::vector<Particle>::iterator particle){
+   
+   
     if (particles.size() > 0){   
-        particles.erase(nearest);
+        particles.erase(particle);
+        return true;
     }else{
-        std::cout << "No particles to erase!\n";
+        return false;
     }
     
 
@@ -103,14 +131,81 @@ void generatePoints()
 {
     particles.clear();
     for(int i = 0; i < INITIAL_POINT_COUNT; i++){
-        float x = rand() % WINDOW_SIZE_X + 0;
-        float y = rand() % WINDOW_SIZE_Y + 0;
+        float x = rand() % window_size_x + 0;
+        float y = rand() % window_size_y + 0;
         add_point(x,y);
     }
 }
 
-bool in_range(Point2D position,float range){
-    return position.distanceTo(mouse_pos) <= range;
+bool in_range(Point2D position1,Point2D position2,float range){
+    return position1.distanceTo(position2) <= range;
+}
+
+void windowReshapeFunc( int newWidth, int newHeight ) {
+    
+
+    window_size_x = newWidth;
+    window_size_y = newHeight;
+
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    gluOrtho2D(0, window_size_x, 0, window_size_y);
+    glMatrixMode(GL_MODELVIEW);
+    glViewport(0,0,window_size_x,window_size_y);
+  
+
+}
+
+void create_circle(float h, float k){
+    int r = 100;
+
+    auto p = (&particles)->begin();
+
+    for (int x = h-r; x< h+r; x += round(r/20) ){
+        
+        if (p == (&particles)->end()){break;}
+
+        float y = sqrt(pow(r,2)-pow((x-h),2)) - k;
+
+        std::cout<<"circle point"<<x<<", "<<y<<std::endl;
+
+        p->target = Point2D(window_size_y-y,x);
+        p->moving_to_target = true;
+
+
+        ++p;
+
+    }
+    for (int x = h-r; x< h+r; x += round(r/20) ){
+        
+        if (p == (&particles)->end()){break;}
+
+        float y = -sqrt(pow(r,2)-pow((x-h),2)) - k;
+
+        std::cout<<"circle point"<<x<<", "<<y<<std::endl;
+
+        p->target = Point2D(window_size_y-y,x);
+        p->moving_to_target = true;
+
+
+        ++p;
+
+    }
+    // for (int x = h-r; x< h+r; x++){
+        
+    //     float y = -sqrt(pow(r,2)-pow((x-h),2)) - k;
+
+    //     std::cout<<"circle point"<<x<<", "<<y<<std::endl;
+    //     while(!in_range(p->position,Point2D(h,k),p->range)){
+    //        ++p;
+    //        if(p == (&particles)->end()){
+    //            break;
+    //        }
+    //     }
+
+    //     p->target = Point2D(h,k);
+    //     p->moving_to_target = true;
+    // }
 }
 
 void update_points(int x){
@@ -119,57 +214,81 @@ void update_points(int x){
         {
 
             Vec2D applied_force = Vec2D(0,0);
+            Vec2D target_force = Vec2D(0,0);
             Vec2D acceleration = Vec2D(0,0);
             Vec2D friction = Vec2D(0,0);
 
-            if (left_mouse && in_range(p->position,p->range)){
-                applied_force = Vec2D::createVector(mouse_pos,p->position).normalize().multiply(-0.5);
-            }else if(right_mouse && in_range(p->position, p->range)){
-                applied_force = Vec2D::createVector(mouse_pos,p->position).normalize().multiply(0.5);
+            if (left_mouse && in_range(p->position,mouse_pos,p->range)){
+                applied_force = Vec2D::createVector(mouse_pos,p->position).normalize().multiply(-mouse_strength);
+            }else if(right_mouse && in_range(p->position, mouse_pos,p->range)){
+                applied_force = Vec2D::createVector(mouse_pos,p->position).normalize().multiply(mouse_strength);
             }
 
+            if (p->moving_to_target){
+                target_force = Vec2D::createVector(p->position,p->target).normalize().multiply(mouse_strength);
+            }
+            
 
-            if ((abs(p->direction.mX) >= 0.005) && (abs(p->direction.mY) >= 0.005)){
-                friction = p->direction.normalize().multiply(-0.08/p->size);
+            if ((abs(p->direction.mX) >= MIN_SPEED) && (abs(p->direction.mY) >= MIN_SPEED)){
+                friction = p->direction.multiply(-friction_coefficient*(p->size));
             }else{
                 p->direction = Vec2D(0,0);
             }
 
-            acceleration = Vec2D(applied_force.mX+friction.mX, applied_force.mY+friction.mY);
+            acceleration = Vec2D(applied_force.mX+friction.mX+target_force.mX, applied_force.mY+friction.mY+target_force.mY);
             //std::cout<< "acceleration: " <<acceleration.mX << ", " << acceleration.mY << "\n";
 
             //janky 'vector add' function because i dont want to modify Vec2D itself
             p->direction = Vec2D(p->direction.mX + acceleration.mX, p->direction.mY + acceleration.mY);
             //std::cout<< "velocity: " << p->direction.mX << ", " << p->direction.mY << "\n";
 
-            if (p->position.mX >= WINDOW_SIZE_X){
+
+            //check and handle boundary collision
+            if (p->position.mX >= window_size_x){
                 p->direction = Vec2D(p->direction.mX*-1,p->direction.mY);
-                p->position = Point2D(WINDOW_SIZE_X - p->size,p->position.mY);
+                p->position = Point2D(window_size_x ,p->position.mY);
             }else if (p->position.mX <= 0){
                 p->direction = Vec2D(p->direction.mX*-1,p->direction.mY);
-                p->position = Point2D(0 + p->size,p->position.mY);
+                p->position = Point2D(0 ,p->position.mY);
             }
 
-            if (p->position.mY >= WINDOW_SIZE_Y){
+            if (p->position.mY >= window_size_y){
                 p->direction = Vec2D(p->direction.mX,p->direction.mY*-1);
-                p->position = Point2D(p->position.mX,WINDOW_SIZE_Y - p->size);
+                p->position = Point2D(p->position.mX,window_size_y );
             }else if (p->position.mY <= 0){
                 p->direction = Vec2D(p->direction.mX,p->direction.mY*-1);
-                p->position = Point2D(p->position.mX,0 + p->size);
+                p->position = Point2D(p->position.mX,0 );
             }
 
+        
 
             p->position = p->direction.movePoint(p->position);
+
+
+            
+            // for (auto other = (&particles)->begin(); other != (&particles)->end(); ++other){
+            //     if (p != other && p->collideWith(*other)){
+            //         //std::cout<<"collide!\n";
+            //         //p->direction = Vec2D((other->size/p->size)*p->direction.mX+(other->direction.mX),(other->size/p->size)*p->direction.mY+(other->direction.mY));
+            //         //add_point((p->position.mX+other->position.mX)/2,(p->position.mY+other->position.mY)/2,false,true,p->colour.r,p->colour.g,p->colour.b);
+            //         //remove_point(p);
+            //         //remove_point(other);
+            //     }
+            // }
         }
     }
     //glutPostRedisplay();
     glutTimerFunc(17,update_points,0);
 }
 
+void update_mouse_pos(int x, int y){
+    mouse_pos.mX = static_cast<float>(x);
+    mouse_pos.mY = static_cast<float>(window_size_y - y);
+}
+
 void mouse(int btn, int state, int x, int y)
 {
-    mouse_pos.mX = static_cast<float>(x);
-    mouse_pos.mY = static_cast<float>(WINDOW_SIZE_Y - y);
+    update_mouse_pos(x,y);
 
     std::cout<< "mouse click: "<< mouse_pos.mX << ", " <<mouse_pos.mY <<"\n";
     if (btn == GLUT_LEFT_BUTTON)
@@ -200,63 +319,168 @@ void mouse(int btn, int state, int x, int y)
 
 void motion(int x, int y)
 {
-    mouse_pos.mX = static_cast<float>(x);
-    mouse_pos.mY = static_cast<float>(WINDOW_SIZE_Y - y);
+    update_mouse_pos(x,y);
 }
+
 
 
 void kbd(unsigned char key, int x, int y)
 {
+
+    std::vector<Particle>::iterator p;
+    Point2D location;
+    int size;
+
     switch (key)
     {
         //increases the size of the points only if it is less than the max
     case 'a':
-            std::cout << "add particle at:" << x <<", "<<y << "\n"; 
-            add_point(static_cast<float>(x),static_cast<float>(WINDOW_SIZE_Y - y));
+            std::cout << "add particle at:" << x <<", "<<y << std::endl; 
+            add_point(static_cast<float>(x),static_cast<float>(window_size_y - y));
 
         break;
+    case 'c':
+            std::cout<<"make a circle!"<<std::endl;
+            create_circle(static_cast<float>(x),static_cast<float>(window_size_y - y));
     case 'd':
-            std::cout << "remove particle\n"; 
-            remove_point(static_cast<float>(x),static_cast<float>(WINDOW_SIZE_Y - y));
+            std::cout << "remove particle" << std::endl; 
+            if (remove_point(find_closest_particle(static_cast<float>(x),static_cast<float>(window_size_y - y)))){
+                std::cout << "success" <<std::endl;
+            }else{
+                std::cout << "No particles to erase!"<< std::endl;
+            }
+        break;
+
+    case 'e':
+             std::cout << "explode particle" << std::endl; 
+
+             p = find_closest_particle(static_cast<float>(x),static_cast<float>(window_size_y - y));
+             location = p->position;
+             size = p->size;
+
+             if (remove_point(p)){
+                 for (int i = 0; i < size-1; i++){
+                     add_point(location.mX,location.mY,true);
+                 }
+             }else{
+                 std::cout << "No particles to explode!"<< std::endl;
+             }
+
+            // Particle p = remove_point(static_cast<float>(x),static_cast<float>(window_size_y - y));
+            // if (p != NULL){
+            //     for (int i = 0; i < p.size; i++){
+            //         add_point(p.position.mX,p.position.mY,true);
+            //     }
+            // }else{
+            //     std::cout << "No particles to explode!"<< std::endl;
+            // };
+            
         break;
     case '+':
-            std::cout << "increase range\n"; 
-            modify_range(1);
+            std::cout << "increase range"<< std::endl;
+            if (range_factor < 10){
+                modify_range(1);
+                range_factor += 1;
+            }else{
+                std::cout << "max range"<< std::endl;
+            }
+        
         break;
     case '-':
-            std::cout << "decrease range\n";
-            modify_range(-1);
+            std::cout << "decrease range"<< std::endl;
+            if (range_factor > 0){
+                modify_range(-1);
+                range_factor -= 1;
+            }else{
+                std::cout << "min range"<< std::endl;
+            }
+        
+        break;
+    case ']':
+            std::cout << "increase speed" << std::endl;
+            if (mouse_strength < 1){
+                
+                mouse_strength += 0.1;
+            }else{
+                std::cout << "max speed" << std::endl;
+            }
+        break;
+    case '[':
+            std::cout << "decrease speed"<< std::endl;
+            if (mouse_strength > 0.1){
+                
+                mouse_strength -= 0.1;
+            }else{
+                std::cout << "min speed"<< std::endl;
+            }
+        break;
+    case 'p':
+            std::cout << "increase friction"<< std::endl;
+            if (friction_coefficient < 0.01){
+                
+                friction_coefficient += 0.001;
+            }else{
+                std::cout << "max friction"<< std::endl;
+            }
+        break;
+    case 'o':
+            std::cout << "decrease friction"<< std::endl;
+            if (friction_coefficient > 0.001){
+                
+                friction_coefficient -= 0.001;
+            }else{
+                std::cout << "min friction"<< std::endl;
+            }
         break;
     case 32:
-        std::cout << "Pause simulation\n";
+        std::cout << "Pause simulation" << std::endl;
         running = !running;
         break;
     case 'r':
-        std::cout << "Reset scene\n";
+        std::cout << "Reset scene" << std::endl;
         generatePoints();
         break;
     case 'q':
-        std::cout << "quit the program";
+        std::cout << "quit the program" << std::endl;
         exit(0);
         break;
     }
 }
 
+
+void print_info(){
+    std::cout << "---PROGRAM USAGE---\n\n" << 
+    "a : add a particle at the cursor\n" << 
+    "d : delete particle closest to the cursor\n" <<
+    "c : create a circle\n" <<
+    "e : explode the closest particle\n" <<
+    "+ : increase particle range\n" << 
+    "- : decrease particle range\n" <<
+    "] : increase particle speed\n" <<
+    "[ : decrease particle speed\n" << 
+     "p : increase friction\n" <<
+    "o : decrease friction\n" <<
+    "space : pause simulation\n" <<
+    "r : reset scene\n" <<
+    "q : quit the program" << std::endl;
+}
+
 /* main function - program entry point */
 int main(int argc, char **argv)
 {
-
+    print_info();
     srand (time(NULL));
     generatePoints();
     glutInit(&argc, argv); //starts up GLUT
     glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE);
-    glutInitWindowSize(WINDOW_SIZE_X, WINDOW_SIZE_Y);
+    glutInitWindowSize(window_size_x, window_size_y);
     glutCreateWindow("Particle Simulation.exe"); //creates the window
-    gluOrtho2D(0, WINDOW_SIZE_X, 0, WINDOW_SIZE_Y);
+   // gluOrtho2D(0, window_size_x, 0, window_size_y);
     glutTimerFunc(17,update_points,0);
     glutKeyboardFunc(kbd);
     glutMotionFunc(motion);
     glutDisplayFunc(display);
+    glutReshapeFunc(windowReshapeFunc);
     glutMouseFunc(mouse);
     glutMainLoop();
     return (0);
