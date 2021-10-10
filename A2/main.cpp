@@ -19,7 +19,7 @@
 int window_size_x = 600;
 int window_size_y = 600;
 
-const int INITIAL_POINT_COUNT = 50;
+const int INITIAL_POINT_COUNT = 500;
 
 //the minimum speed that a particle can go before stopping
 const float MIN_SPEED = 0.005;
@@ -158,54 +158,41 @@ void windowReshapeFunc( int newWidth, int newHeight ) {
 
 void create_circle(float h, float k){
     int r = 100;
+    int detail = 10;
+
+    float y;
 
     auto p = (&particles)->begin();
 
-    for (int x = h-r; x< h+r; x += round(r/20) ){
+    Colour c = {(rand() % 75 + 25)*0.01,(rand() % 75 + 25)*0.01,(rand() % 75 + 25)*0.01};
+
+   // k = window_size_y - k;
+   for (int i = 0; i< 2;i++){
+       for (int x = h-r; x < h+r + round(r/detail); x += round(r/detail) ){
         
         if (p == (&particles)->end()){break;}
 
-        float y = sqrt(pow(r,2)-pow((x-h),2)) - k;
+        if (!p->moving_to_target && in_range(p->position,Point2D(h,k),p->range)){
 
-        std::cout<<"circle point"<<x<<", "<<y<<std::endl;
+            if(i==0){
+                y = sqrt(pow(r,2)-pow((x-h),2)) + k;
+            }else{
+                y = -sqrt(pow(r,2)-pow((x-h),2)) + k;
+            }
 
-        p->target = Point2D(window_size_y-y,x);
-        p->moving_to_target = true;
+            std::cout<<"circle point"<<x<<", "<<y<<std::endl;
 
+            p->target = Point2D(x,y);
+            p->moving_to_target = true;
+            p->colour = c;
+        }else{
+            x -= round(r/detail);
+        }
 
         ++p;
 
     }
-    for (int x = h-r; x< h+r; x += round(r/20) ){
-        
-        if (p == (&particles)->end()){break;}
-
-        float y = -sqrt(pow(r,2)-pow((x-h),2)) - k;
-
-        std::cout<<"circle point"<<x<<", "<<y<<std::endl;
-
-        p->target = Point2D(window_size_y-y,x);
-        p->moving_to_target = true;
-
-
-        ++p;
-
-    }
-    // for (int x = h-r; x< h+r; x++){
-        
-    //     float y = -sqrt(pow(r,2)-pow((x-h),2)) - k;
-
-    //     std::cout<<"circle point"<<x<<", "<<y<<std::endl;
-    //     while(!in_range(p->position,Point2D(h,k),p->range)){
-    //        ++p;
-    //        if(p == (&particles)->end()){
-    //            break;
-    //        }
-    //     }
-
-    //     p->target = Point2D(h,k);
-    //     p->moving_to_target = true;
-    // }
+   }
 }
 
 void update_points(int x){
@@ -342,6 +329,7 @@ void kbd(unsigned char key, int x, int y)
     case 'c':
             std::cout<<"make a circle!"<<std::endl;
             create_circle(static_cast<float>(x),static_cast<float>(window_size_y - y));
+        break;
     case 'd':
             std::cout << "remove particle" << std::endl; 
             if (remove_point(find_closest_particle(static_cast<float>(x),static_cast<float>(window_size_y - y)))){
@@ -452,7 +440,7 @@ void print_info(){
     std::cout << "---PROGRAM USAGE---\n\n" << 
     "a : add a particle at the cursor\n" << 
     "d : delete particle closest to the cursor\n" <<
-    "c : create a circle\n" <<
+    "c : create a circle at the cursor\n" <<
     "e : explode the closest particle\n" <<
     "+ : increase particle range\n" << 
     "- : decrease particle range\n" <<
