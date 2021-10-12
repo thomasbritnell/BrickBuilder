@@ -1,14 +1,10 @@
+//Thomas Britnell October 2021
+
 #ifndef PARTICLE_H
 #define PARTICLE_H
 
 #include "../A1/mathLib2D.h"
-
-
-struct Colour {
-    float r;
-    float g;
-    float b;
-};
+#include "colour.h"
 
 class Particle {
 public:
