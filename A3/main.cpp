@@ -4,13 +4,28 @@
 #include <GL/gl.h>
 #include <GL/glu.h>
 #include <GL/freeglut.h>
+#include <iostream>
 
-float pos[] = {0,1,0};
-float rot[] = {0, 0, 0};
-float headRot[] = {0, 0, 0};
-float camPos[] = {100, 250, 100};
+
+float globalRot[] = {0,0,0};
+
+int CAMPOS[3] = {300, 300, 300};
+float camPos[3] = {static_cast<float>(CAMPOS[0]),static_cast<float>(CAMPOS[1]),static_cast<float>(CAMPOS[2])};
+float lookAt[3];
+const int LOOKAT[3] = {0,0,0};
+float lightPos[] = {0,100,0,1};
 
 bool fountain_on = true;
+bool friction_mode = true;
+
+bool lights_on = true;
+bool particleCam = false;
+std::vector<Particle3D>::iterator particlePerspective;
+
+float pos[4] = {2, 2, 2, 1}; 
+float amb[4] = {1, 1, 1, 1}; 
+float dif[4] = {1, 1, 1, 1}; 
+float spc[4] = {1, 1, 1, 1}; 
 
 Point3D origin;
 ParticleList particle_list;
@@ -18,35 +33,61 @@ ParticleList particle_list;
 
 void drawAxis(){
     glPushMatrix();
-    glLineWidth(2);
-    glBegin(GL_LINES);
+    // glLineWidth(2);
+    // glBegin(GL_LINES);
 
-    glColor3f (1.0, 0.0, 0.0);
-    glVertex3f(0.0, 0.0, 0.0);
-    glVertex3f(5.0, 0.0, 0.0);
+    // glColor3f (1.0, 0.0, 0.0);
+    // glVertex3f(0.0, 0.0, 0.0);
+    // glVertex3f(5.0, 0.0, 0.0);
 
-    glColor3f (1.0, 1.0, 0.0);
-    glVertex3f(0.0, 0.0, 0.0);
-    glVertex3f(0.0, 5.0, 0.0);
+    // glColor3f (1.0, 1.0, 0.0);
+    // glVertex3f(0.0, 0.0, 0.0);
+    // glVertex3f(0.0, 5.0, 0.0);
 
-    glColor3f (0.0, 0.0, 1.0);
-    glVertex3f(0.0, 0.0, 0.0);
-    glVertex3f(0.0, 0.0, 5.0);
-    glEnd();
+    // glColor3f (0.0, 0.0, 1.0);
+    // glVertex3f(0.0, 0.0, 0.0);
+    // glVertex3f(0.0, 0.0, 5.0);
+    // glEnd();
+    glutSolidTeapot(10);
+    glPopMatrix();
+}
+
+void drawLight(){
+    glPushMatrix();
+    //glLoadIdentity();
+
+    glTranslatef(lightPos[0],lightPos[1],lightPos[2]);
+    glutSolidTeapot(10);
+
     glPopMatrix();
 }
 
 void drawFloor(){
 
-    float size = 100.0f;
+    float size = 200.0f;
     glPushMatrix();
+    if (lights_on){
+            //Obsidian
+            float amb[] = { 0.05375f, 0.05f, 0.06625f, 0.82f };
+            float diff[] = { 0.18275f, 0.17f, 0.22525f, 0.82f};
+            float spec[] = {0.332741f, 0.328634f, 0.346435f, 0.82f };
+            float shin = 38.4f ;
 
+            glMaterialfv(GL_FRONT_AND_BACK,GL_AMBIENT,amb);
+            glMaterialfv(GL_FRONT_AND_BACK,GL_DIFFUSE,diff);
+            glMaterialfv(GL_FRONT_AND_BACK,GL_SPECULAR,spec);
+            glMaterialfv(GL_FRONT_AND_BACK,GL_SHININESS,&shin);
+            
+        }else{
+            glColor3f(0.1f,0.2f,0.25f);
+        }
     glBegin(GL_QUADS);
-        glColor3f(0.1f,0.2f,0.25f);
-        glVertex3f(-size,0.0f,0.0f);
-        glVertex3f(0.0f,0.0f,size);
-        glVertex3f(size,0.0f,0.0f);
-        glVertex3f(0.0f,0.0f,-size);
+        
+        
+        glVertex3f(-size,-10.0f,-size);
+        glVertex3f(-size,-10.0f,size);
+        glVertex3f(size,-10.0f,size);
+        glVertex3f(size,-10.0f,-size);
     glEnd();
 
     glPopMatrix();
@@ -67,13 +108,18 @@ float random(int min, int max){
 
 
 Particle3D createParticle(Point3D origin){
-    Point3D position = origin;
-    Vec3D direction = Vec3D(random(-100,100)*0.001,1,random(-100,100)*0.001);
+    Point3D position = origin; 
+    Vec3D direction = Vec3D(random(-100,100)*particle_list.direction.mX,particle_list.direction.mY,random(-100,100)*particle_list.direction.mZ);
     int speed = random(3,8);
     Angle rotation = {0.0f,0.0f,0.0f};
-    int size = random(1,5);
-    Colour colour = {random(0,50)*0.01,random(0,50)*0.01,random(50,100)*0.01};
-    Material material = static_cast<Material>(random(0,3));
+    int size = random(4,7);
+    Colour colour = {random(0,100)*0.01f,random(0,100)*0.01f,random(0,100)*0.01f};
+
+
+    MaterialType m = static_cast<MaterialType>(random(0,3));
+    //std::cout<< m << std::endl;
+
+    Material material = Material(m);
     int age = 0;
 
     return Particle3D(position,direction,speed,rotation,size,colour,material,age);
@@ -85,112 +131,81 @@ ParticleList generateParticles(Point3D origin){
 
     for(int i = 0; i < ParticleList::BURST_SIZE ; i++){
         
-        particles.push_back(createParticle(origin));
+        Particle3D new_particle = createParticle(origin);
+
+        particles.push_back(new_particle);
     }
     ParticleList list = ParticleList(particles,origin);
     return list;
 }
 
+void DrawScene(){
 
-void DrawSnowman(float* pos, float* rot)
-{
-	glPushMatrix();
-	drawFloor();
-
-    glRotatef(rot[1], 0, 1, 0);
-	glTranslatef(pos[0], pos[1], pos[2]);
-
-	
-	//drawAxis();
-	//draw body
-	glColor3f(1,1,1);
-	glutSolidSphere(1, 16, 16);
-
-	//draw buttons
-	glPushMatrix();
-	glTranslatef(0, 0.35, 0.9);
-	glScalef(0.1,0.1,0.1);
-	//drawAxis();
-	glColor3f(0, 0, 0);
-	glutSolidSphere(1, 10, 10);
-	glPopMatrix();
-
-	glPushMatrix();
-	glTranslatef(0, 0.15, 0.95);
-	glScalef(0.1,0.1,0.1);
-	//drawAxis();
-	glColor3f(0, 0, 0);
-	glutSolidSphere(1, 10, 10);
-	glPopMatrix();
-
-	glPushMatrix();
-	glTranslatef(0, -0.05, 0.95);
-	glScalef(0.1,0.1,0.1);
-	//drawAxis();
-	glColor3f(0, 0, 0);
-	glutSolidSphere(1, 10, 10);
-	glPopMatrix();
+    glPushMatrix();
+    glRotatef(globalRot[0],1,0,0);//x rotation
+    glRotatef(globalRot[1],0,1,0);//y rotation
+    glRotatef(globalRot[2],0,0,1);//z rotation
 
 
-	glPushMatrix();
-	//translate relative to body, and draw head
-	glTranslatef(0, 1.25, 0);
-	glRotatef(headRot[1], 0, 1, 0); //turn the head relative to the body
-	glColor3f(1,1,1);
-	glutSolidSphere(0.5, 16, 16);
-	
-	//translate and draw right eye
-	glPushMatrix();
-	glTranslatef(0.2, 0.15, 0.45);
-	glColor3f(0,0,0);
-	glutSolidSphere(0.1, 10, 10);
-	glPopMatrix();
 
-	//translate and draw left eye
-	glPushMatrix();
-	glTranslatef(-0.2, 0.15, 0.45);
-	glColor3f(0,0,0);
-	glutSolidSphere(0.1, 10, 10);
-	glPopMatrix();
 
-	//translate and draw nose
-	glPushMatrix();
-	glTranslatef(0, 0, 0.5);
-	glColor3f(1,0.4,0);
-	glutSolidSphere(0.1, 10, 10);
-	glPopMatrix();
-
-	glPopMatrix();//body
-	glPopMatrix();//snowman
-
-	//glutSolidSphere(1,10,10);
-}
-
-void DrawParticles(){
+    drawAxis();
     drawFloor();
+    drawLight();
+
     for (Particle3D p : particle_list.particles){
         glPushMatrix();
         glTranslatef(p.position.mX,p.position.mY,p.position.mZ);
         //glRotatef(p.rotation.rX,p.rotation.rY,p.rotation.rZ);
-        glColor3f(p.colour.r,p.colour.g,p.colour.b);
-        glutSolidSphere(p.size/2,10,10);
+
+    
+        if (lights_on){
+            glMaterialfv(GL_FRONT_AND_BACK,GL_AMBIENT,p.material.amb);
+            glMaterialfv(GL_FRONT_AND_BACK,GL_DIFFUSE,p.material.diff);
+            glMaterialfv(GL_FRONT_AND_BACK,GL_SPECULAR,p.material.spec);
+            glMaterialfv(GL_FRONT_AND_BACK,GL_SHININESS,p.material.shiny);
+        }else{
+            glColor3f(p.colour.r,p.colour.g,p.colour.b);
+        }
+        
+        glutSolidSphere(p.size/2,7,7);
         glPopMatrix();
     }
+
+    glPopMatrix();
 }
+
+// void particleCam(Particle3D particle){
+//     // camPos = {};
+//     while (particle.markForDeletion){
+//         Point3D lookAtPoint = particle.direction.normalize().movePoint(particle.position);
+//         std::cout << lookAtPoint.mX << lookAtPoint.mY << lookAtPoint.mZ <<std::endl;
+//         // gluLookAt(particle.position.mX, particle.position.mY, particle.position.mZ, lookAt.mX, lookAt.mY, lookAt.mZ, 0,1,0);
+//         camPos[0] = particle.position.mX;
+//         camPos[1] = particle.position.mY;
+//         camPos[2] = particle.position.mZ;
+//         lookAt[0] = lookAtPoint.mX;
+//         lookAt[1] = lookAtPoint.mY;
+//         lookAt[2] = lookAtPoint.mZ;
+//     }
+    
+
+// }
 
 void init(void)
 {
     origin = Point3D(0,0,0);
     particle_list = generateParticles(origin);
 
+    glEnable(GL_LIGHTING);
+    glEnable(GL_LIGHT0);
 
-
-	glClearColor(0.5, 0.5, 0.5, 0);
+	glClearColor(0, 0, 0, 0);
 	glColor3f(1, 1, 1);
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	//glOrtho(-2, 2, -2, 2, -2, 2);
-	gluPerspective(45, 1, 1, 500);
+	// glOrtho(-250, 250, -250, 250, -500, 500);
+	gluPerspective(45, 1, 1, 1000);
 }
 
 void display(void)
@@ -200,14 +215,43 @@ void display(void)
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 
-	gluLookAt(camPos[0], camPos[1], camPos[2], 0,0,0, 0,100,0);
+    if (particleCam)
+    {
+        if (!particlePerspective->shouldDelete()){
+            Point3D lookAtPoint = particlePerspective->direction.normalize().movePoint(particlePerspective->position);
+            camPos[0] = particlePerspective->position.mX;
+            camPos[1] = particlePerspective->position.mY;
+            camPos[2] = particlePerspective->position.mZ;
+            lookAt[0] = lookAtPoint.mX;
+            lookAt[1] = lookAtPoint.mY;
+            lookAt[2] = lookAtPoint.mZ;
+        }        
+        
+    }else{
+        particleCam = false;
+        camPos[0] = CAMPOS[0];
+            camPos[1] = CAMPOS[1];
+            camPos[2] = CAMPOS[2];
+            lookAt[0] = LOOKAT[0];
+            lookAt[1] = LOOKAT[1];
+            lookAt[2] = LOOKAT[2];
+    }
 
-	//DrawSnowman(pos, rot);
-    DrawParticles();
+    gluLookAt(camPos[0], camPos[1], camPos[2], lookAt[0], lookAt[1], lookAt[2], 0,1,0);
+	  
+    glLightfv(GL_LIGHT0, GL_POSITION, lightPos); 
+    glLightfv(GL_LIGHT0, GL_DIFFUSE, dif); 
+    glLightfv(GL_LIGHT0, GL_AMBIENT, amb); 
+    glLightfv(GL_LIGHT0, GL_SPECULAR, spc);
 
-    for(int i = 0;i < ParticleList::BURST_SIZE ; i++){
+    
+    if (fountain_on){
+        for(int i = 0;i < ParticleList::BURST_SIZE ; i++){
             particle_list.addParticle(createParticle(origin));
         }
+    }
+    
+    DrawScene();
 
 
 	glutSwapBuffers();
@@ -218,24 +262,36 @@ void kbd(unsigned char key, int x, int y)
     switch (key)
     {
     case 'x':
-        camPos[0]++;
+        //camPos[0]++;
+        globalRot[0]++;
         break;
     case 'y':
-        camPos[1]++;
+        //camPos[1]++;
+        globalRot[1]++;
         break;
     case 'z':
-        camPos[2]++;
+        //camPos[2]++;
+        globalRot[2]++;
         break;
     case 'X':
-        camPos[0]--;
+        //camPos[0]--;
+        globalRot[0]--;
         break;
     case 'Y':
-        camPos[1]--;
+        //camPos[1]--;
+        globalRot[1]--;
         break;
     case 'Z':
-        camPos[2]--;
+        //camPos[2]--;
+        globalRot[2]--;
         break;
-
+    case 'p':
+        if(!particleCam){
+            std::vector<Particle3D>::iterator selectedParticle = std::prev((&(particle_list.particles))->end());
+            particlePerspective = selectedParticle;
+            particleCam = true;
+        }
+        break;
     case 'r':
     case 'R':
         particle_list = generateParticles(origin);
@@ -246,7 +302,45 @@ void kbd(unsigned char key, int x, int y)
         }
         
         break;
+    case 'q':
+    exit(0);
+    break;
+    case 32:
+        fountain_on = !fountain_on;
+    break;
+    case 'l':
+    case 'L':
+        lights_on = !lights_on;
+    break;
+    case '=':
+        CAMPOS[0] = CAMPOS[0]*1.2;
+        CAMPOS[1] = CAMPOS[1]*1.2;
+        CAMPOS[2] = CAMPOS[2]*1.2;
+    break;
+    case '-':
+        CAMPOS[0] = CAMPOS[0]*0.8;
+        CAMPOS[1] = CAMPOS[1]*0.8;
+        CAMPOS[2] = CAMPOS[2]*0.8;
+    break;
+
     }
+}
+void specialkbd(int key, int x, int y){
+    switch(key){
+        case GLUT_KEY_DOWN:
+            lightPos[0]--;
+        break;
+        case GLUT_KEY_UP:
+            lightPos[0]++; 
+        break;
+        case GLUT_KEY_LEFT:
+            lightPos[2]--; 
+        break;
+        case GLUT_KEY_RIGHT: 
+            lightPos[2]++;
+        break;
+    }
+
 }
 
 int main(int argc, char **argv){
@@ -265,6 +359,7 @@ int main(int argc, char **argv){
 
 	glutDisplayFunc(display);	//registers "display" as the display callback function
 	glutKeyboardFunc(kbd);
+    glutSpecialFunc(specialkbd);
     glutTimerFunc(17,update,0);
 
 

@@ -2,10 +2,8 @@
 #define PARTICLE_3D
 
 #include "mathLib3D.h"
-#include "../../A2/colour.h"
-
-enum Material {Metal, Wood, Plastic};
-
+#include "colour.h"
+#include "material.h"
 
 class Particle3D{
 public:
@@ -26,7 +24,7 @@ public:
 
     constexpr static float TERMINAL_VELOCITY = 100;
     constexpr static float MIN_SPEED = 0.005f;
-    const static int PARTICLE_LIFESPAN = 75;
+    const static int PARTICLE_LIFESPAN = 500;
 
 
 

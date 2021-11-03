@@ -4,7 +4,7 @@
 #include <iostream>
 #include <stdlib.h>
 
-Particle3D::Particle3D(){};
+Particle3D::Particle3D(){};//change -- can't have a blank constructor apparently
 
 Particle3D::Particle3D(Point3D position, Vec3D direction, float speed, Angle rotation, int size, Colour colour, Material material,int age){
     this->position = position;
@@ -36,7 +36,7 @@ void Particle3D::update(){
             this->direction = Vec3D(direction.mX,direction.mY-((0.049*size)/speed),direction.mZ);
         
         }else{
-            this->direction = Vec3D(direction.mX,0,direction.mZ);
+            this->direction = Vec3D(direction.mX,-0.9*direction.mY,direction.mZ);
         }
         
         this->position = this->direction.multiply(this->speed).movePoint(this->position);

@@ -27,7 +27,7 @@ endif
 all: clean main 
 
 main:
-	$(CC) -o main main.cpp particleList.cpp particle3D.cpp mathLib3D.cpp $(LDFLAGS)
+	$(CC) -o main main.cpp particleList.cpp particle3D.cpp material.cpp mathLib3D.cpp $(LDFLAGS)
 	./main.exe
 clean:
 	rm -f main

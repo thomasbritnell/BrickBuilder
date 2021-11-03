@@ -7,13 +7,14 @@
 class ParticleList{
 public:
     
-    ParticleList(std::vector<Particle3D> particles, Point3D origin);
+    ParticleList(std::vector<Particle3D> particles, Point3D origin, Vec3D direciton);
     ParticleList(std::vector<Particle3D> particles);
     ParticleList();
     void removeDeleted();
     void updateParticles();
-    const static int BURST_SIZE = 5;
+    const static int BURST_SIZE = 2;
     Point3D origin;
+    Vec3D direction;
 
     void addParticle(Particle3D particle);
 

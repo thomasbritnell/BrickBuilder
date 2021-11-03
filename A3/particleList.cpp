@@ -1,19 +1,24 @@
 #include "headers/particleList.h"
 #include <random>
 
-ParticleList::ParticleList(std::vector<Particle3D> particles, Point3D origin){
+ParticleList::ParticleList(std::vector<Particle3D> particles, Point3D origin, Vec3D direction){
     this->particles = particles;
     this->origin = origin;
+    this->direction = direction;
 }
 
-ParticleList::ParticleList(std::vector<Particle3D> particles) : ParticleList(particles, Point3D(0,0,0)){}
+ParticleList::ParticleList(std::vector<Particle3D> particles) : ParticleList(particles, Point3D(0,0,0), Vec3D(0.0005f,1,0.0005f)){}
 
-ParticleList::ParticleList(){}
+ParticleList::ParticleList() : ParticleList(std::vector<Particle3D>(), Point3D(0,0,0), Vec3D(0.0005f,1,0.0005f)){} //if this is a problem then yeah its probaly hthis line
 
 void ParticleList::removeDeleted(){
 
     std::vector<Particle3D> survivors;
 
+
+    // for(auto p = this->particles.end(); p != this->particles.begin(); --p){
+        
+    // }
     for(Particle3D p : this->particles){
         if (!p.shouldDelete()){
             survivors.push_back(p);
