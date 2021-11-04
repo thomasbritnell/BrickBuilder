@@ -7,6 +7,8 @@ ParticleList::ParticleList(std::vector<Particle3D> particles, Point3D origin, Ve
     this->direction = direction;
 }
 
+ParticleList::ParticleList(std::vector<Particle3D> particles, Point3D origin) : ParticleList(particles, origin, Vec3D(0.0005f,1,0.0005f)){}
+
 ParticleList::ParticleList(std::vector<Particle3D> particles) : ParticleList(particles, Point3D(0,0,0), Vec3D(0.0005f,1,0.0005f)){}
 
 ParticleList::ParticleList() : ParticleList(std::vector<Particle3D>(), Point3D(0,0,0), Vec3D(0.0005f,1,0.0005f)){} //if this is a problem then yeah its probaly hthis line
@@ -33,6 +35,10 @@ void ParticleList::updateParticles(){
     for(auto p = (&particles)->begin(); p != (&particles)->end(); ++p){
             p->update();
     }
+}
+
+void ParticleList::reset(){
+    this->particles.clear();
 }
 
 void ParticleList::addParticle(Particle3D particle){

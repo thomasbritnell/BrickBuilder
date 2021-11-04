@@ -26,6 +26,7 @@ public:
     Point3D movePoint(Point3D source);
 
     static Vec3D createVector(Point3D p1, Point3D p2);
+    static Vec3D crossProduct(Vec3D v1, Vec3D v2);
 };
 
 struct Angle{

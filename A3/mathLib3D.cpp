@@ -45,3 +45,12 @@ Point3D Vec3D::movePoint(Point3D source){
 Vec3D Vec3D::createVector(Point3D p1, Point3D p2){
     return Vec3D(p2.mX=p1.mX,p2.mY-p1.mY,p2.mZ-p1.mZ);
 }
+
+Vec3D Vec3D::crossProduct(Vec3D v1, Vec3D v2){
+
+    return Vec3D(v1.mY*v2.mZ - v1.mZ*v2.mY,
+                            -1*(v1.mX*v2.mZ - v1.mZ*v2.mX),
+                            v1.mX*v2.mY - v1.mY*v2.mX);
+
+    
+}

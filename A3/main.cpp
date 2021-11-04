@@ -9,11 +9,11 @@
 
 float globalRot[] = {0,0,0};
 
-int CAMPOS[3] = {300, 300, 300};
+int CAMPOS[3] = {300, 300, 0};
 float camPos[3] = {static_cast<float>(CAMPOS[0]),static_cast<float>(CAMPOS[1]),static_cast<float>(CAMPOS[2])};
 float lookAt[3];
 const int LOOKAT[3] = {0,0,0};
-float lightPos[] = {0,100,0,1};
+float lightPos[] = {0,100,0,0};
 
 bool fountain_on = true;
 bool friction_mode = true;
@@ -33,6 +33,16 @@ ParticleList particle_list;
 
 void drawAxis(){
     glPushMatrix();
+    float amb[] = { 0.05375f, 0.05f, 0.06625f, 0.82f };
+            float diff[] = { 0.18275f, 0.17f, 0.22525f, 0.82f};
+            float spec[] = {0.332741f, 0.328634f, 0.346435f, 0.82f };
+            float shin = 38.4f ;
+
+            glMaterialfv(GL_FRONT_AND_BACK,GL_AMBIENT,amb);
+            glMaterialfv(GL_FRONT_AND_BACK,GL_DIFFUSE,diff);
+            glMaterialfv(GL_FRONT_AND_BACK,GL_SPECULAR,spec);
+            glMaterialfv(GL_FRONT_AND_BACK,GL_SHININESS,&shin);
+    glutSolidSphere(25,25,25);
     // glLineWidth(2);
     // glBegin(GL_LINES);
 
@@ -48,7 +58,7 @@ void drawAxis(){
     // glVertex3f(0.0, 0.0, 0.0);
     // glVertex3f(0.0, 0.0, 5.0);
     // glEnd();
-    glutSolidTeapot(10);
+   // glutSolidTeapot(10);
     glPopMatrix();
 }
 
@@ -57,7 +67,7 @@ void drawLight(){
     //glLoadIdentity();
 
     glTranslatef(lightPos[0],lightPos[1],lightPos[2]);
-    glutSolidTeapot(10);
+    glutSolidTeapot(50);
 
     glPopMatrix();
 }
@@ -79,16 +89,31 @@ void drawFloor(){
             glMaterialfv(GL_FRONT_AND_BACK,GL_SHININESS,&shin);
             
         }else{
-            glColor3f(0.1f,0.2f,0.25f);
+            glColor3f(0.1f,0.1f,0.1f);
         }
+
+    
+    Vec3D normal = Vec3D::crossProduct(Vec3D::createVector(Point3D(-size,-10.0f,size),Point3D(-size,-10.0f,-size)),
+            Vec3D::createVector(Point3D(size,-10.0f,-size),Point3D(-size,-10.0f,-size))).normalize().multiply(-1);
+
     glBegin(GL_QUADS);
-        
-        
-        glVertex3f(-size,-10.0f,-size);
-        glVertex3f(-size,-10.0f,size);
-        glVertex3f(size,-10.0f,size);
-        glVertex3f(size,-10.0f,-size);
+        glNormal3f(normal.mX,normal.mY,normal.mZ);
+        glVertex3f(-size,-10.0f,-size);//v1
+       // glNormal3f(normal.mX,normal.mY,normal.mZ);
+        glVertex3f(-size,-10.0f,size);//v2
+       // glNormal3f(normal.mX,normal.mY,normal.mZ);
+        glVertex3f(size,-10.0f,size);//v4
+       // glNormal3f(normal.mX,normal.mY,normal.mZ);
+        glVertex3f(size,-10.0f,-size);//v3
     glEnd();
+
+    // glLineWidth(2);
+    // glBegin(GL_LINES);
+
+    // glColor3f (1.0, 0.0, 0.0);
+    // glVertex3f(0.0, 0.0, 0.0);
+    // glVertex3f(normal.mX*50, normal.mY*50, normal.mZ*50);
+    // glEnd();
 
     glPopMatrix();
 }
@@ -113,13 +138,16 @@ Particle3D createParticle(Point3D origin){
     int speed = random(3,8);
     Angle rotation = {0.0f,0.0f,0.0f};
     int size = random(4,7);
-    Colour colour = {random(0,100)*0.01f,random(0,100)*0.01f,random(0,100)*0.01f};
-
+  
 
     MaterialType m = static_cast<MaterialType>(random(0,3));
     //std::cout<< m << std::endl;
 
     Material material = Material(m);
+
+    Colour colour = {material.diff[0],material.diff[1],material.diff[2]};
+  
+
     int age = 0;
 
     return Particle3D(position,direction,speed,rotation,size,colour,material,age);
@@ -199,8 +227,8 @@ void init(void)
 
     glEnable(GL_LIGHTING);
     glEnable(GL_LIGHT0);
-
-	glClearColor(0, 0, 0, 0);
+    
+	glClearColor(0.2, 0.2, 0.2, 0);
 	glColor3f(1, 1, 1);
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
@@ -294,7 +322,8 @@ void kbd(unsigned char key, int x, int y)
         break;
     case 'r':
     case 'R':
-        particle_list = generateParticles(origin);
+        //particle_list = generateParticles(origin);
+        particle_list.reset();
         break;
     case 'a':
         for(int i = 0;i < ParticleList::BURST_SIZE ; i++){
@@ -311,13 +340,20 @@ void kbd(unsigned char key, int x, int y)
     case 'l':
     case 'L':
         lights_on = !lights_on;
+        if(lights_on){
+            glEnable(GL_LIGHTING);
+            glEnable(GL_LIGHT0);
+        }else{
+            glDisable(GL_LIGHT0);
+            glDisable(GL_LIGHTING);
+        }
     break;
-    case '=':
+    case '-':
         CAMPOS[0] = CAMPOS[0]*1.2;
         CAMPOS[1] = CAMPOS[1]*1.2;
         CAMPOS[2] = CAMPOS[2]*1.2;
     break;
-    case '-':
+    case '=':
         CAMPOS[0] = CAMPOS[0]*0.8;
         CAMPOS[1] = CAMPOS[1]*0.8;
         CAMPOS[2] = CAMPOS[2]*0.8;
@@ -329,15 +365,19 @@ void specialkbd(int key, int x, int y){
     switch(key){
         case GLUT_KEY_DOWN:
             lightPos[0]--;
+            //globalRot[2]--;
         break;
         case GLUT_KEY_UP:
             lightPos[0]++; 
+            //globalRot[2]++;
         break;
         case GLUT_KEY_LEFT:
             lightPos[2]--; 
+            //globalRot[1]--;
         break;
         case GLUT_KEY_RIGHT: 
             lightPos[2]++;
+            //globalRot[1]++;
         break;
     }
 
