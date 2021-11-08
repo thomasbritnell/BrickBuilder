@@ -1,8 +1,9 @@
 #include "headers/material.h"
 
-Material::Material(){}
 
 Material::Material(MaterialType type){
+
+    this->type = type;
 
     switch (type){
         case MaterialType::plastic :
@@ -66,3 +67,5 @@ Material::Material(MaterialType type){
         break;
     }
 }
+
+Material::Material():Material(MaterialType::plastic){}

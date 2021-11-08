@@ -4,6 +4,7 @@
 #include "mathLib3D.h"
 #include "colour.h"
 #include "material.h"
+#include <vector>
 
 class Particle3D{
 public:
@@ -17,14 +18,17 @@ public:
     Colour colour;
     Material material;
     int age;
+    std::vector<Point3D> trail;
 
-    void update();
+    void update(bool friction, float* cannon);
     void markForDeletion();
     bool shouldDelete();
+        void addToTrail();
+    void clearTrail();
 
     constexpr static float TERMINAL_VELOCITY = 100;
     constexpr static float MIN_SPEED = 0.005f;
-    const static int PARTICLE_LIFESPAN = 500;
+    const static int PARTICLE_LIFESPAN = 250;
 
 
 

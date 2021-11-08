@@ -4,7 +4,7 @@
 #include <iostream>
 #include <stdlib.h>
 
-Particle3D::Particle3D(){};//change -- can't have a blank constructor apparently
+
 
 Particle3D::Particle3D(Point3D position, Vec3D direction, float speed, Angle rotation, int size, Colour colour, Material material,int age){
     this->position = position;
@@ -18,6 +18,8 @@ Particle3D::Particle3D(Point3D position, Vec3D direction, float speed, Angle rot
     this->marked_for_deletion = false;
 }
 
+Particle3D::Particle3D() : Particle3D(Point3D(),Vec3D(),0,{0,0,0},1,{1,1,1},Material(),0){};
+
 void Particle3D::markForDeletion(){
     this->marked_for_deletion  =true;
 }
@@ -27,22 +29,46 @@ bool Particle3D::shouldDelete(){
 }
 
 //update particle according to speed and direction
-void Particle3D::update(){
+void Particle3D::update(bool friction, float* cannon){
 
     if (this->age < Particle3D::PARTICLE_LIFESPAN){
          //update for gravity
         //std::cout<<age<<std::endl;
-        if (this->position.mY > -1){
-            this->direction = Vec3D(direction.mX,direction.mY-((0.049*size)/speed),direction.mZ);
+        Vec3D acceleration = Vec3D();
+
+
+        
+
+        if (this->direction.multiply(this->speed).movePoint(this->position).mY >= 0){
+
+        //if above the ground, accelerate due to gravity 
+            acceleration = Vec3D(0,-((0.049*size)/speed),0);
         
         }else{
-            this->direction = Vec3D(direction.mX,-0.9*direction.mY,direction.mZ);
+
+            acceleration = friction ? Vec3D(0,-1.8*this->direction.mY,0) : Vec3D(0,-2*this->direction.mY,0) ;
         }
         
+
+        this->direction = this->direction.add(acceleration);
+
+
         this->position = this->direction.multiply(this->speed).movePoint(this->position);
         this->age++;
+        this->rotation.rX++;
+        this->rotation.rY++;
+        this->rotation.rZ++;
+
     }else{
         markForDeletion();
     }
    // std::cout << "direction * speed " << direction.mY*speed <<std::endl;
+}
+
+void Particle3D::addToTrail(){
+    this->trail.push_back(this->position);
+}
+
+void Particle3D::clearTrail(){
+    this->trail.clear();
 }

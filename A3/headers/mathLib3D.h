@@ -24,6 +24,7 @@ public:
     Vec3D normalize();
     Vec3D multiply(float scalar);
     Point3D movePoint(Point3D source);
+    Vec3D add(Vec3D other);
 
     static Vec3D createVector(Point3D p1, Point3D p2);
     static Vec3D crossProduct(Vec3D v1, Vec3D v2);

@@ -11,7 +11,7 @@ ParticleList::ParticleList(std::vector<Particle3D> particles, Point3D origin) : 
 
 ParticleList::ParticleList(std::vector<Particle3D> particles) : ParticleList(particles, Point3D(0,0,0), Vec3D(0.0005f,1,0.0005f)){}
 
-ParticleList::ParticleList() : ParticleList(std::vector<Particle3D>(), Point3D(0,0,0), Vec3D(0.0005f,1,0.0005f)){} //if this is a problem then yeah its probaly hthis line
+ParticleList::ParticleList() : ParticleList(std::vector<Particle3D>(), Point3D(), Vec3D(0.0005f,1,0.0005f)){} //if this is a problem then yeah its probaly hthis line
 
 void ParticleList::removeDeleted(){
 
@@ -29,11 +29,17 @@ void ParticleList::removeDeleted(){
     this->particles = survivors;
 }
 
-void ParticleList::updateParticles(){
+void ParticleList::updateParticles(bool friction, float* cannon){
     removeDeleted();
     
     for(auto p = (&particles)->begin(); p != (&particles)->end(); ++p){
-            p->update();
+            p->update(friction, cannon);
+            if (trailOn){
+                p->addToTrail();
+            }
+            else{
+                p->clearTrail();
+            }
     }
 }
 
@@ -43,4 +49,8 @@ void ParticleList::reset(){
 
 void ParticleList::addParticle(Particle3D particle){
     this->particles.push_back(particle);
+    // if (selectNewParticle){
+    //     this->selectedParticle = (&(this->particles))->end()-1;
+    //     selectNewParticle = false;
+    // }
 }

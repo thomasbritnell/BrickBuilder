@@ -12,7 +12,7 @@ public:
     ParticleList(std::vector<Particle3D> particles);
     ParticleList();
     void removeDeleted();
-    void updateParticles();
+    void updateParticles(bool friction, float* cannon);
     const static int BURST_SIZE = 2;
     Point3D origin;
     Vec3D direction;
@@ -22,6 +22,12 @@ public:
     void addParticle(Particle3D particle);
 
     std::vector<Particle3D> particles;
+
+    bool trailOn = false;
+
+    //std::vector<Particle3D>::iterator selectedParticle;
+   // bool selectNewParticle = false;
+    // Particle3D* selectedParticle;
 };
 
 
