@@ -43,18 +43,18 @@ void drawLight(){
 
     if (lights_on){
             //Obsidian
-            float amb[] = { 0.05375f, 0.05f, 0.06625f, 0.82f };
-            float diff[] = { 0.18275f, 0.17f, 0.22525f, 0.82f};
-            float spec[] = {0.332741f, 0.328634f, 0.346435f, 0.82f };
+            // float amb[] = { 0.15375f, 0.15f, 0.06625f, 0.82f };
+            // float diff[] = { 0.18275f, 0.17f, 0.22525f, 0.82f};
+            // float spec[] = {0.332741f, 0.328634f, 0.346435f, 0.82f };
             float shin = 38.4f ;
 
             glMaterialfv(GL_FRONT_AND_BACK,GL_AMBIENT,amb);
-            glMaterialfv(GL_FRONT_AND_BACK,GL_DIFFUSE,diff);
-            glMaterialfv(GL_FRONT_AND_BACK,GL_SPECULAR,spec);
+            glMaterialfv(GL_FRONT_AND_BACK,GL_DIFFUSE,dif);
+            glMaterialfv(GL_FRONT_AND_BACK,GL_SPECULAR,spc);
             glMaterialfv(GL_FRONT_AND_BACK,GL_SHININESS,&shin);
             
     }else{
-        glColor3f(0.1f,0.1f,0.1f);
+        glColor3f(0.9f,0.9f,0.9f);
     }
 
 
