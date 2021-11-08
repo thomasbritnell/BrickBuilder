@@ -17,10 +17,6 @@ void ParticleList::removeDeleted(){
 
     std::vector<Particle3D> survivors;
 
-
-    // for(auto p = this->particles.end(); p != this->particles.begin(); --p){
-        
-    // }
     for(Particle3D p : this->particles){
         if (!p.shouldDelete()){
             survivors.push_back(p);
@@ -29,11 +25,11 @@ void ParticleList::removeDeleted(){
     this->particles = survivors;
 }
 
-void ParticleList::updateParticles(bool friction, float* cannon){
+void ParticleList::updateParticles(bool friction){
     removeDeleted();
     
     for(auto p = (&particles)->begin(); p != (&particles)->end(); ++p){
-            p->update(friction, cannon);
+            p->update(friction);
             if (trailOn){
                 p->addToTrail();
             }
@@ -49,8 +45,4 @@ void ParticleList::reset(){
 
 void ParticleList::addParticle(Particle3D particle){
     this->particles.push_back(particle);
-    // if (selectNewParticle){
-    //     this->selectedParticle = (&(this->particles))->end()-1;
-    //     selectNewParticle = false;
-    // }
 }
