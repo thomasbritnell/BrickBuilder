@@ -1,6 +1,6 @@
 #include "header/placeBrickCommand.h"
 
-
+PlaceBrickCommand::PlaceBrickCommand() : brick(Brick()), board(nullptr){}
 
 PlaceBrickCommand::PlaceBrickCommand(Brick brick, Board* board) : brick(brick), board(board){}
     

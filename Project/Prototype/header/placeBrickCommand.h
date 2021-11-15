@@ -8,6 +8,7 @@ class PlaceBrickCommand{
         Brick brick;
         Board* board;
         
+        PlaceBrickCommand();
         PlaceBrickCommand(Brick brick, Board* board);
 
         void execute();
