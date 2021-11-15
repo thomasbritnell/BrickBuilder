@@ -6,8 +6,8 @@
 #changing platform dependant stuff, do not change this
 # Linux (default)
 LDFLAGS = -lGL -lGLU -lglut
-CFLAGS=-g -Wall -std=c++11
-CC=g++
+CXXFLAGS=-g -Wall -std=c++11
+CCX=g++
 EXEEXT=
 RM=rm
 
@@ -24,10 +24,20 @@ else
 	endif
 endif
 
-all: clean main 
+#change the 't1' name to the name you want to call your application
+PROGRAM_NAME= tutorial2
 
-main:
-	$(CC) -o main main.cpp brick.cpp board.cpp mathLib3D.cpp camera.cpp inputHandler.cpp material.cpp mesh.cpp objParser.cpp placeBrickCommand.cpp $(LDFLAGS)
-	./main.exe
+#run target to compile and build, and then launch the executable
+run: $(PROGRAM_NAME)
+	./$(PROGRAM_NAME)$(EXEEXT)
+
+#when adding additional source files, such as boilerplateClass.cpp
+#or yourFile.cpp, add the filename with an object extension below
+#ie. boilerplateClass.o and yourFile.o
+#make will automatically know that the objectfile needs to be compiled
+#form a cpp source file and find it itself :)
+$(PROGRAM_NAME): tutorial2.o
+	$(CCX) -o $@ $^ $(CFLAGS) $(LDFLAGS)
+
 clean:
-	rm -f main
+	$(RM) *.o $(PROGRAM_NAME)$(EXEEXT)
