@@ -5,8 +5,16 @@ enum MaterialType{
     plastic,emerald,ruby,gold,pearl
 };
 
+/**
+ * @brief Holds the properties of all materials in MaterialType enum
+ * 
+ */
 class Material{
     public:
+        /**
+         * @brief Construct a new Material object, default is plastic
+         * 
+         */
         Material();
         Material(MaterialType type);
         MaterialType type;

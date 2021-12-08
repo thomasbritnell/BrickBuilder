@@ -1,4 +1,4 @@
-#include "PPM.h"
+#include "header/PPM.h"
 #include <stdio.h>
 #include <stdlib.h>
 

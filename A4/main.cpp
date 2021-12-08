@@ -11,6 +11,7 @@
 
 #include <iostream>
 #include <vector>
+#include <limits>
 #include <string>
 
 #include "header/camera.h"
@@ -18,7 +19,7 @@
 #include "header/object.h"
 // #include "texturedCube.cpp"
 
-#include "PPM.h"
+#include "header/PPM.h"
 
 int window_size_x = 800;
 int window_size_y = 800;
@@ -32,10 +33,11 @@ bool alt; //control pressed
 bool shift;
 bool alt_shift; //both control and shift pressed
 
-Point3D initialRightClickPosition;
-float previousRightClickPosition[2];
+Point3D initialMiddleClickPosition;
+float previousMiddleClickPosition[2];
 
 bool leftClick;
+bool middleClick;
 bool rightClick;
 
 float selectedLight = 0;
@@ -50,8 +52,7 @@ Material selectedMaterial;
 
 
 std::vector<Object> objects;
-
-Object* selectedObject;
+std::vector<Object*> selectedObjects;
 
 Vec3D cursorRay = Vec3D();
 Plane ground = Plane(Point3D(0,0,0),Vec3D(0,1,0));
@@ -85,30 +86,9 @@ struct Image {
     }
 };
 
-Image selectedTexture;
 Image marbleTexture;
 Image floorTexture;
-Image brickTexture;
-
-
-Point3D rayPlaneIntersection(Vec3D ray, Plane plane){
-    float D = plane.position.distanceTo(Point3D()); 
-    float vectorsDotProd = Vec3D::dotProduct(plane.normal,ray);
-    // if(vectorsDotProd == 0){ // ray is 90deg to plane
-    //     return Point3D(); // for now, must change to a null or some way to say it didnt work
-    // }
-
-    // std::cout << "draw Donut" << vectorsDotProd << std::endl;
-    float t = (-(Vec3D::dotProduct(plane.normal,ray.start) + D)) / vectorsDotProd;
-
-    //std::cout << "draw Donut" << ray.start.mY << std::endl;
-
-    float pX = ray.start.mX + t * ray.mX;
-    float pY = ray.start.mY + t * ray.mY;
-    float pZ = ray.start.mZ + t * ray.mZ;
-
-    return Point3D(pX,pY,pZ);
-}
+Image snakeTexture;
 
 void update(int unused){
 
@@ -119,13 +99,14 @@ void update(int unused){
 
 void resetScene(){
     objects.clear();
+    selectedObjects.clear();
     lightPos[0][0] = 0;
     lightPos[0][1] = 50;
     lightPos[0][2] = -50;
     lightPos[1][0] = 0;
     lightPos[1][1] = 50;
     lightPos[1][2] = 50;
-    selectedObject = nullptr;
+    selectedObjects = std::vector<Object*>();
 
 }
 
@@ -143,22 +124,18 @@ void loadScene(float* data){
     //objects!
 
     objects.clear();
+    selectedObjects.clear();
 
 
     for (int i = 0 ; i < data[0]; i++){
         int j = i*11+7;
 
-        std::cout << "loading object:" << std::endl;
-        std::cout<<"position:\n" << data[j] << ", " << data[j+1] << ", " << data[j+2] << std::endl;
-        
-        std::cout<<"rotation:\n" << data[j+3] << ", " << data[j+4] << ", " << data[j+5] << std::endl;
-        
-        std::cout<<"scale:\n" << data[j+6] << ", " << data[j+7] << ", " << data[j+8] << std::endl;
-
         Object temp = Object(Material(static_cast<MaterialType>(data[j+9])),static_cast<ObjectType>(data[j+10]));
         temp.position = Point3D(data[j],data[j+1],data[j+2]);
         temp.rotation = Point3D(data[j+3],data[j+4],data[j+5]);
         temp.scale = Point3D(data[j+6],data[j+7],data[j+8]);
+        temp.calculateMaxScale();
+        temp.allignBoundingPlanes();
         objects.push_back(temp);
     }
 
@@ -349,7 +326,7 @@ static void drawBox(GLfloat size, GLenum type)
   }
 }
 
-glutTexturedCube(GLdouble size)
+void glutTexturedCube(GLdouble size)
 {
   drawBox(size, GL_QUADS);
 }
@@ -358,15 +335,13 @@ void drawObject(Object object){
     glPushMatrix();
 
     glTranslatef(object.position.mX, object.position.mY, object.position.mZ);
-    
-    glScalef(object.scale.mX, object.scale.mY, object.scale.mZ);
-
 
     //rotation order should be zxy
     glRotatef(object.rotation.mZ*45, 0,0,1);
     glRotatef(object.rotation.mX*45, 1,0,0);
     glRotatef(object.rotation.mY*45, 0,1,0);
 
+    glScalef(object.scale.mX, object.scale.mY, object.scale.mZ);
 
     if (lights_on){
         glMaterialfv(GL_FRONT_AND_BACK,GL_AMBIENT,object.material.amb);
@@ -381,14 +356,16 @@ void drawObject(Object object){
     switch(object.type){
         case ObjectType::cube:
             glEnable(GL_TEXTURE_2D);
-            brickTexture.texture();
+            snakeTexture.texture();
             glutTexturedCube(2);
             glDisable(GL_TEXTURE_2D);
             break;
         case ObjectType::teapot:
             glEnable(GL_TEXTURE_2D);
             marbleTexture.texture();
+            glFrontFace(GL_CCW);
             glutSolidTeapot(1);
+            glFrontFace(GL_CW);
             glDisable(GL_TEXTURE_2D);
             break;
         case ObjectType::sphere:
@@ -402,7 +379,6 @@ void drawObject(Object object){
             glPopMatrix();
             break;
         case ObjectType::torus:
-            // std::cout << "draw Donut" << std::endl;
             glutSolidTorus(0.5,1,16,16);
             break;
         case ObjectType::octahedron:
@@ -410,16 +386,13 @@ void drawObject(Object object){
             break;
     }
     glDisable(GL_NORMALIZE);
-    // if(selectedTexture != nullptr){
-    //     selectedTexture.texture();
-    // }
 
     glPopMatrix();
 
 }
 
 void drawSelection(){
-    glPushMatrix();
+    
     if (lights_on){
         // Green rubber
         float amb[] ={ 0.0f,0.05f,0.0f,1.0f };
@@ -437,27 +410,46 @@ void drawSelection(){
         glColor3f(0.0,1.0,0.0);
     }
 
-    glTranslatef(selectedObject->position.mX, selectedObject->position.mY, selectedObject->position.mZ);
-    
-    glScalef(selectedObject->scale.mX, selectedObject->scale.mY, selectedObject->scale.mZ);
+    for (auto selectedObject: selectedObjects){
+        glPushMatrix();
+        glTranslatef(selectedObject->position.mX, selectedObject->position.mY, selectedObject->position.mZ);
 
     //rotation order should be zxy
-    glRotatef(selectedObject->rotation.mZ*45, 0,0,1);
-    glRotatef(selectedObject->rotation.mX*45, 1,0,0);
-    glRotatef(selectedObject->rotation.mY*45, 0,1,0);
+        // glRotatef(selectedObject->rotation.mZ*45, 0,0,1);
+        // glRotatef(selectedObject->rotation.mX*45, 1,0,0);
+        // glRotatef(selectedObject->rotation.mY*45, 0,1,0);
 
-    glutWireCube(2);
+        selectedObject->calculateMaxScale();
 
-    glPopMatrix();
+
+    // switch(selectedObject->type){
+    //     case ObjectType::teapot:
+    //         glPushMatrix();
+    //         glTranslatef(0.1,0,0);
+    //         glScalef(1.6,0.8,1.0);
+    //         glutWireCube(2);
+    //         glPopMatrix();
+    //         break;
+    //     case ObjectType::torus:
+    //         glPushMatrix();
+    //         glScalef(1.5,1.5,0.5);
+    //         glutWireCube(2);
+    //         glPopMatrix();
+    //         break;
+    //     default:
+    //         glutWireCube(2); // temp
+    //         break;
+    // }
+        glutWireCube(selectedObject->maxScale*2.5);
+        
+        glPopMatrix();
+    }
 }
 
 
 void DrawScene(){
    
     
-
-    // glPopMatrix();
-    // glPushMatrix();
     
 
     
@@ -475,22 +467,7 @@ void DrawScene(){
     }
 
     
-    // std::cout << "draw normal" << std::endl;
-
-    // glPushMatrix();
-    // glTranslatef(cursorTo3D.mX,cursorTo3D.mY,cursorTo3D.mZ);
-    // glutSolidTeapot(10);
-    
-    // // glutSolidTorus(0.5,1,16,16);
-    // glPopMatrix();
-
-
-    // glColor3f(0.3f,0.4f,0.8f);
-    // glutSolidCube(10);
-
-
-    // glPopMatrix();
-    if (selectedObject){
+    if (!selectedObjects.empty()){
         drawSelection();
     }
     
@@ -501,7 +478,20 @@ void DrawScene(){
 
 void printInstructions(){
 
-    const char* instr = "No instructions yet";
+    const char* instr = "S or s to save the file. You need to enter the file name in the command line and press enter.\n"
+    "O or o to open an existing file. You need to write a correct file name in the command line.\n"
+    "R to reset the scene.\n"
+    "Esc to exit the program.\n"
+    "[ and ] to change the selected light source.\n"
+    "l or L to toggle the lights on or off.\n"
+    "1 2 3 4 5 to switch betweeen the selected material. Also changes the material of the selected object (plastic, emerald, ruby, gold, pearl respectively). \n"
+    "q w e r t y to switch between the selected objects (cube, teapot, sphere, cone, torus, octahedron respectively).\n"
+    "Alt + z, x, and c to increase the selected object's scale in the z x and y directions. (Press shift at the same time to decrease the respective scales.\n"
+    "z, x, or c to translate the selected object in the z, x, and y directions. (Press shift at the same time to move in negative directions.)\n"
+    "b, n, or m to rotate the selected object in the z, x, and y directions. (Press shift at the same time to reverse the rotations.)\n"
+    "Click the left mouse button to select an object.\n"
+    "Click and hold the middle mouse button to move around the scene.\n"
+    "Click the right mouse button to delete an object.\n";
     std::cout << instr << std::endl;
 }
 
@@ -539,14 +529,14 @@ void display(void)
 	DrawScene();
 
     //ray
-    glPushMatrix();
-    glLineWidth(5);
-    glBegin(GL_LINES);
-    glColor3f (1.0, 0.0, 0.0);//red is x
-    glVertex3f(start[0],start[1],start[2]);
-    glVertex3f(end[0],end[1],end[2]);
-    glEnd();
-    glPopMatrix();
+    // glPushMatrix();
+    // glLineWidth(5);
+    // glBegin(GL_LINES);
+    // glColor3f (1.0, 0.0, 0.0);//red is x
+    // glVertex3f(start[0],start[1],start[2]);
+    // glVertex3f(end[0],end[1],end[2]);
+    // glEnd();
+    // glPopMatrix();
 
 	glutSwapBuffers();
 }
@@ -575,17 +565,16 @@ void prepareDataForSave(float* data){
     int i = 7;
 
     for(auto object : objects){
-        std::cout<< "saving object:\nposition:" << std::endl;
 
-        data[i] = object.position.mX; std::cout<< object.position.mX << std::endl;
-        data[i+1] = object.position.mY; std::cout<< object.position.mY << std::endl;
-        data[i+2] = object.position.mZ; std::cout<< object.position.mZ << std::endl;
-        data[i+3] = object.rotation.mX; std::cout<< "rotation:\n"<<object.rotation.mX << std::endl;
-        data[i+4] = object.rotation.mY;std::cout<< object.rotation.mY << std::endl;
-        data[i+5] = object.rotation.mZ;std::cout<< object.rotation.mZ << std::endl;
-        data[i+6] = object.scale.mX; std::cout<< "scale:\n"<<object.scale.mX << std::endl;
-        data[i+7] = object.scale.mY;std::cout<< object.scale.mY << std::endl;
-        data[i+8] = object.scale.mZ;std::cout<< object.scale.mZ << std::endl;
+        data[i] = object.position.mX; 
+        data[i+1] = object.position.mY; 
+        data[i+2] = object.position.mZ; 
+        data[i+3] = object.rotation.mX; 
+        data[i+4] = object.rotation.mY;
+        data[i+5] = object.rotation.mZ;
+        data[i+6] = object.scale.mX; 
+        data[i+7] = object.scale.mY;
+        data[i+8] = object.scale.mZ;
         data[i+9] = static_cast<float>(object.material.type);
         data[i+10] = static_cast<float>(object.type);
         i+=11;
@@ -595,6 +584,7 @@ void prepareDataForSave(float* data){
 
 void kbd(unsigned char key, int x, int y)
 {
+    Object newObject;
     std::string input;
     
     //for saving
@@ -659,136 +649,237 @@ void kbd(unsigned char key, int x, int y)
         case '1':
             
             selectedMaterial = Material(MaterialType::plastic);
-            if (selectedObject){
-                selectedObject->material = selectedMaterial;
+            if (!selectedObjects.empty()){
+                for (auto selectedObject: selectedObjects){
+                    selectedObject->material = selectedMaterial;
+                }
             }
             
             break;
         case '2':
             selectedMaterial = Material(MaterialType::emerald);
-            if (selectedObject){
-                selectedObject->material = selectedMaterial;
+            if (!selectedObjects.empty()){
+                for (auto selectedObject: selectedObjects){
+                    selectedObject->material = selectedMaterial;
+                }
+                
             }
             break;
         case '3':
             selectedMaterial = Material(MaterialType::ruby);
-            if (selectedObject){
-                selectedObject->material = selectedMaterial;
+            if (!selectedObjects.empty()){
+                for (auto selectedObject: selectedObjects){
+                    selectedObject->material = selectedMaterial;
+                }
             }
             break;
         case '4':
             selectedMaterial = Material(MaterialType::gold);
-            if (selectedObject){
-                selectedObject->material = selectedMaterial;
+            if (!selectedObjects.empty()){
+                for (auto selectedObject: selectedObjects){
+                    selectedObject->material = selectedMaterial;
+                }   
+                
             }
             break;
         case '5':
             selectedMaterial = Material(MaterialType::pearl);
-            if (selectedObject){
-                selectedObject->material = selectedMaterial;
+            if (!selectedObjects.empty()){
+                for (auto selectedObject: selectedObjects){
+                    selectedObject->material = selectedMaterial;
+                }
+                
             }
             break;
-        case '6':
-            selectedTexture = marbleTexture;
-            break;
         case 'q':
-            objects.push_back(Object(selectedMaterial, ObjectType::cube));
-            selectedObject = &objects.back();
+            newObject = Object(selectedMaterial, ObjectType::cube);
+            newObject.allignBoundingPlanes();
+            objects.push_back(newObject);
+            selectedObjects.clear();
+            selectedObjects.push_back(&objects.back());
             break;
         case 'w':
-            objects.push_back(Object(selectedMaterial, ObjectType::teapot));
-            selectedObject = &objects.back();
+            newObject = Object(selectedMaterial, ObjectType::teapot);
+            newObject.allignBoundingPlanes();
+            objects.push_back(newObject);
+            selectedObjects.clear();
+            selectedObjects.push_back(&objects.back());
             break;
         case 'e':
-            objects.push_back(Object(selectedMaterial, ObjectType::sphere));
-            selectedObject = &objects.back();
+            newObject = Object(selectedMaterial, ObjectType::sphere);
+            newObject.allignBoundingPlanes();
+            objects.push_back(newObject);
+            selectedObjects.clear();
+            selectedObjects.push_back(&objects.back());
             break;
         case 'r':
-            objects.push_back(Object(selectedMaterial, ObjectType::cone));
-            selectedObject = &objects.back();
+            newObject = Object(selectedMaterial, ObjectType::cone);
+            newObject.allignBoundingPlanes();
+            objects.push_back(newObject);
+            selectedObjects.clear();
+            selectedObjects.push_back(&objects.back());
             break;
         case 't':
-            objects.push_back(Object(selectedMaterial, ObjectType::torus));
-            selectedObject = &objects.back();
+            newObject = Object(selectedMaterial, ObjectType::torus);
+            newObject.allignBoundingPlanes();
+            objects.push_back(newObject);
+            selectedObjects.clear();
+            selectedObjects.push_back(&objects.back());
             break;
         case 'y':
-            objects.push_back(Object(selectedMaterial, ObjectType::octahedron));
-            selectedObject = &objects.back();
+            newObject = Object(selectedMaterial, ObjectType::octahedron);
+            newObject.allignBoundingPlanes();
+            objects.push_back(newObject);
+            selectedObjects.clear();
+            selectedObjects.push_back(&objects.back());
             break;
 
 
         case 'Z':
         case 'z': // z axis translation
 
-            if (!selectedObject){break;}
+            if (!!selectedObjects.empty()){break;}
 
             getModifiers();
 
-
-            if (shift){
+            for (auto selectedObject : selectedObjects){
+                if (shift){
+                // selectedObject->minP.mZ--;
+                // selectedObject->maxP.mZ--;
+                
                 selectedObject->position.mZ--;
+
             }else if(alt){
-                selectedObject->scale.mZ++;
+                if(selectedObject->scale.mZ < 10){
+                    // selectedObject->minP.mZ--;
+                    // selectedObject->maxP.mZ++;
+                    selectedObject->scale.mZ++;
+                }
             }else if (alt_shift){
-                selectedObject->scale.mZ--;
+                if(selectedObject->scale.mZ > 1){
+                    // selectedObject->minP.mZ++;
+                    // selectedObject->maxP.mZ--;
+                    selectedObject->scale.mZ--;
+                }
             }else{
+                // selectedObject->minP.mZ++;
+                // selectedObject->maxP.mZ++;
                 selectedObject->position.mZ++;
             }
+            selectedObject->allignBoundingPlanes();
+            }
+            
             break;
         case 'X':
         case 'x': // x axis translation
 
-            if (!selectedObject){break;}
+            if (!!selectedObjects.empty()){break;}
 
             getModifiers();
 
-            if (shift){
+            for (auto selectedObject: selectedObjects){
+                 if (shift){
+                // selectedObject->minP.mX--;
+                // selectedObject->maxP.mX--;
                 selectedObject->position.mX--;
-            }else if(alt){
-                selectedObject->scale.mX++;
-            }else if (alt_shift){
-                selectedObject->scale.mX--;
-            }else{
-                selectedObject->position.mX++;
+                }else if(alt){
+                    if(selectedObject->scale.mX < 10){
+                        // selectedObject->minP.mX--;
+                        // selectedObject->maxP.mX++;
+                        selectedObject->scale.mX++;
+                    }
+                }else if (alt_shift){
+                    if(selectedObject->scale.mX > 1){
+                        // selectedObject->minP.mX++;
+                        // selectedObject->maxP.mX--;
+                        selectedObject->scale.mX--;
+                    }
+                }else{
+                    // selectedObject->minP.mX++;
+                    // selectedObject->maxP.mX++;
+                    selectedObject->position.mX++;
+                }
+
+                selectedObject->allignBoundingPlanes();
             }
+           
             break;
         case 'C':
         case 'c': // y axis translation
 
-            if (!selectedObject){break;}
+            if (!!selectedObjects.empty()){break;}
 
             getModifiers();
 
-            if (shift){
-                selectedObject->position.mY--;
-            }else if(alt){
-                selectedObject->scale.mY++;
-            }else if (alt_shift){
-                selectedObject->scale.mY--;
-            }else{
-                selectedObject->position.mY++;
-            }
+            for (auto selectedObject:selectedObjects){
+                 if (shift){
+                // selectedObject->minP.mY--;
+                // selectedObject->maxP.mY--;
+                    if ( selectedObject->position.mY > 0){
+                        selectedObject->position.mY--;
+                    }
+                }else if(alt){
+                    if(selectedObject->scale.mY < 10){
+                        // selectedObject->minP.mY--;
+                        // selectedObject->maxP.mY++;
+                        selectedObject->scale.mY++;
+                    }
+                }else if (alt_shift){
+                    if(selectedObject->scale.mY > 1){                    
+                        // selectedObject->minP.mY++;
+                        // selectedObject->maxP.mY--;
+                        selectedObject->scale.mY--;
+                    }
+                }else{
+                    // selectedObject->minP.mY++;
+                    // selectedObject->maxP.mY++;
+                    selectedObject->position.mY++;
+                }
+                selectedObject->allignBoundingPlanes();
+                }
+           
             break;
 
 
 
         case 'B':
-            selectedObject->rotation.mZ = (static_cast<int>(selectedObject->rotation.mZ) - 1)%8;
+            if (!!selectedObjects.empty()){break;}
+
+            for (auto selectedObject : selectedObjects){
+                  selectedObject->rotation.mZ = (static_cast<int>(selectedObject->rotation.mZ) - 1)%8;
+            }
+          
         break;
         case 'b':
-            selectedObject->rotation.mZ = (static_cast<int>(selectedObject->rotation.mZ) + 1)%8;
+            if (!!selectedObjects.empty()){break;}
+
+            for (auto selectedObject : selectedObjects){
+                  selectedObject->rotation.mZ = (static_cast<int>(selectedObject->rotation.mZ) + 1)%8;
+            }
         break;
         case 'N':
-            selectedObject->rotation.mX = (static_cast<int>(selectedObject->rotation.mX) - 1)%8;
+            if (!!selectedObjects.empty()){break;}
+            for (auto selectedObject : selectedObjects){
+                  selectedObject->rotation.mX = (static_cast<int>(selectedObject->rotation.mX) - 1)%8;
+            }
         break;
         case 'n':
-            selectedObject->rotation.mX = (static_cast<int>(selectedObject->rotation.mX) + 1)%8;
+            if (!!selectedObjects.empty()){break;}
+            for (auto selectedObject : selectedObjects){
+                  selectedObject->rotation.mX = (static_cast<int>(selectedObject->rotation.mX) + 1)%8;
+            }
         break;
         case 'M':
-            selectedObject->rotation.mY = (static_cast<int>(selectedObject->rotation.mY) - 1)%8;
+            if (!!selectedObjects.empty()){break;}
+            for (auto selectedObject : selectedObjects){
+                  selectedObject->rotation.mY = (static_cast<int>(selectedObject->rotation.mY) - 1)%8;
+            }
         break;
         case 'm':
-            selectedObject->rotation.mY = (static_cast<int>(selectedObject->rotation.mY) + 1)%8;
+            if (!!selectedObjects.empty()){break;}
+            for (auto selectedObject : selectedObjects){
+                  selectedObject->rotation.mY = (static_cast<int>(selectedObject->rotation.mY) + 1)%8;
+            }
         break;
 
     }
@@ -850,90 +941,128 @@ Vec3D computeMouseRay(int x, int y){
     winX = (float)x;
     winY = (float)y;
 
-    // glReadPixels(x,int(winY),1,1,GL_DEPTH_COMPONENT, GL_FLOAT, &winZ);
-
-    // std::cout<<winZ<<std::endl;
-
     //near plane
     gluUnProject(winX,winY,0.0,modelview,projection,viewport,&start[0],&start[1],&start[2]);
 
     //far plane
     gluUnProject(winX,winY,1.0,modelview,projection,viewport,&end[0],&end[1],&end[2]);
 
-    std::cout << "Ray start" << std::endl;
-    std::cout<<start[0] << " " << start[1] << " " << start[2]<<std::endl;
-    std::cout << "Ray End"<< std::endl;
-    std::cout<<end[0] << " " << end[1] << " " << end[2]<<std::endl;
-    // glPushMatrix();
-    // glLoadIdentity();
-    // glLineWidth(5);
-    // glBegin(GL_LINES);
-    // glColor3f (1.0, 0.0, 0.0);//red is x
-    // glVertex3f(start[0],start[1],start[2]);
-    // glVertex3f(end[0],end[1],end[2]);
-    // glEnd();
-    // glPopMatrix();
+    
     Vec3D newRay = Vec3D::createVector(Point3D(start[0],start[1],start[2]),Point3D(end[0],end[1],end[2]));
     newRay.start = Point3D(start[0], start[1], start[2]); 
 
     return newRay;
 }
 
+bool inSelectedObjects(Object* obj){
+    for(auto &object: selectedObjects){
+        if(obj == object){
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * @brief 
+ * 
+ * @param shift if shift is down, selects mutliple objects
+ */
+void selectClosestObject(bool shift){
+    float closestDist = std::numeric_limits<float>::max();
+    bool hit;
+
+    for(auto &object : objects){
+        hit = object.rayBoxIntersection(cursorRay);
+        if (hit){
+            if(cursorRay.start.distanceTo(object.closestRayIntercept) < closestDist){
+                if (!shift){
+                  selectedObjects.clear();
+                }
+                if (!inSelectedObjects(&object)){
+                    selectedObjects.push_back(&object);
+                }
+                closestDist = cursorRay.start.distanceTo(object.closestRayIntercept);
+                std::cout << "Contact: " << object.closestRayIntercept.mX << "," << object.closestRayIntercept.mY << "," << object.closestRayIntercept.mZ << std::endl;
+            }
+        }
+    }
+}
+
+void deleteClosestObject(){
+    if (objects.size() == 0){return;}
+
+    float closestDist = std::numeric_limits<float>::max();
+    bool hit;
+    std::vector<Object>::iterator toDelete;
+
+    for(auto object = objects.begin() ; object != objects.end(); ++object){
+        hit = (*object).rayBoxIntersection(cursorRay);
+        if (hit){
+            if(cursorRay.start.distanceTo((*object).closestRayIntercept) < closestDist){
+                
+                toDelete = object;
+
+                closestDist = cursorRay.start.distanceTo((*object).closestRayIntercept);
+            }
+        }
+    }
+    selectedObjects.clear(); //clear pointers
+    objects.erase(toDelete);
+}
+
 
 void mouse(int button, int state, int x , int y){
     y = window_size_y - y; // flip y
 
-  //  std::cout << "Mouse Coordinates: ";
-   // std::cout << x << ", " << y << std::endl; // endline is neccassary for terminal to print line by line
-
-
     if (button == GLUT_LEFT_BUTTON) // LMB pressed
     {
-      //  std::cout << "LEFT BUTTON" << std::endl;
         if (state == GLUT_UP)
         {
-     //       std::cout << "RELEASED!" << std::endl;
             leftClick = false;
         }
         if (state == GLUT_DOWN)
         {
-            
-      //      std::cout << "PRESSED!" << std::endl;
             leftClick = true;
-
-            cursorRay = computeMouseRay(x,y);
-            Point3D intercept = rayPlaneIntersection(cursorRay, ground);
-            std::cout << "Intercept" << std::endl;
-            std::cout<< intercept.mX << " " << intercept.mY << " " << intercept.mZ <<std::endl;
             
+            cursorRay = computeMouseRay(x,y);
+            getModifiers();
+            selectClosestObject(shift);
 
 
         }
     }
 
-    else if (button == GLUT_RIGHT_BUTTON) // RMB pressed
+    else if (button == GLUT_MIDDLE_BUTTON) // MMB pressed
     {
-      //  std::cout << "RIGHT BUTTON" << std::endl;
         if (state == GLUT_UP)
         {
-       //     std::cout << "RELEASED!" << std::endl;
-            rightClick = false;
-            previousRightClickPosition[0] = camera.rotation[0]; // y position of mouse
-            previousRightClickPosition[1] = camera.rotation[1]; // x position of mouse
+            middleClick = false;
+            previousMiddleClickPosition[0] = camera.rotation[0]; // y position of mouse
+            previousMiddleClickPosition[1] = camera.rotation[1]; // x position of mouse
         }
         if (state == GLUT_DOWN)
         {
-          //  std::cout << "PRESSED!" << std::endl;
+            middleClick = true;
+            initialMiddleClickPosition = Point3D(x,y,0);
+        }
+    }
+    else if (button == GLUT_RIGHT_BUTTON){
+        if (state == GLUT_UP){
+            rightClick = false;
+
+        }
+        if (state == GLUT_DOWN){
             rightClick = true;
-            initialRightClickPosition = Point3D(x,y,0);
+            cursorRay = computeMouseRay(x,y);
+            deleteClosestObject();
 
         }
     }
 
+
     else if(button == 3){//mouse scroll up
         if (state == GLUT_UP){return;}
-
-        // std::cout << "SCROLL UP!" << std::endl;
 
         camera.zoomIn();
 
@@ -942,7 +1071,6 @@ void mouse(int button, int state, int x , int y){
     else if(button == 4){//mouse scroll down
         if (state == GLUT_UP){return;}
 
-    //    std::cout << "SCROLL DOWN!" << std::endl;
 
         camera.zoomOut();
 
@@ -952,10 +1080,10 @@ void mouse(int button, int state, int x , int y){
 void motion(int x, int y){
     y = window_size_y - y; // flip y
 
-    if(rightClick){
-        Vec3D clickDistance = Vec3D::createVector(initialRightClickPosition, Point3D(x,y,0));
-        camera.rotation[0] = clickDistance.mX + previousRightClickPosition[0]; // y axis rotation depends on x coords of mouse
-        camera.rotation[1] = clickDistance.mY + previousRightClickPosition[1]; // x axis rotation depends on y coords of mouse
+    if(middleClick){
+        Vec3D clickDistance = Vec3D::createVector(initialMiddleClickPosition, Point3D(x,y,0));
+        camera.rotation[0] = clickDistance.mX + previousMiddleClickPosition[0]; // y axis rotation depends on x coords of mouse
+        camera.rotation[1] = clickDistance.mY + previousMiddleClickPosition[1]; // x axis rotation depends on y coords of mouse
     }
 
 }
@@ -978,13 +1106,14 @@ void windowReshapeFunc(int newWidth, int newHeight)
 
 
 int main(int argc, char **argv){
-    marbleTexture.load("texture/marble.ppm");
-    floorTexture.load("texture/floor.ppm");
-    brickTexture.load("texture/snake.ppm");
 
-    // glGenTextures(0, &marbleTexture);
-    // glGenTextures(1, &floorTexture);
-    // glGenTextures(2, &brickTexture);
+    char m[] = "texture/marble.ppm";
+    char f[] = "texture/floor.ppm";
+    char s[] = "texture/snake.ppm";
+
+    marbleTexture.load(m);
+    floorTexture.load(f);
+    snakeTexture.load(s);
 
     glutInit(&argc, argv);		//starts up GLUT
 	

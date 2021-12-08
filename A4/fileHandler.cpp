@@ -71,7 +71,6 @@ void FileHandler::loadFile(std::string fileName, float* data, int& objectCount){
     }
 
     objectCount = data[0];
-    std::cout <<objectCount <<std::endl;
 
 
     for (int i = 7; i < (objectCount*11)+7;i++){
