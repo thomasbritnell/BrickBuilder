@@ -42,6 +42,6 @@ Design Decisions:
 
 -Our special feature was that you can select a group of objects and are able to transform, rotate, change material, etc of all of them at once. 
 
--We also added a special camera movement style that allows smooth motion with the middle mouse button. This was not trivial, as it involves saving previous mouse positions and calculating a delta vector in order to change the scene rotation according to the chnage in mouse position. 
+-Another bonus feature was that we also added a special camera movement style that allows smooth motion with the middle mouse button. This was not trivial, as it involves saving previous mouse positions and calculating a delta vector in order to change the scene rotation according to the chnage in mouse position. 
 
 
