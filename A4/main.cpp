@@ -430,7 +430,8 @@ static void drawBox(GLfloat size, GLenum type)
     glEnd();
   }
 }
-
+/* Cube code modified from glut source code
+*/
 void glutTexturedCube(GLdouble size)
 {
   drawBox(size, GL_QUADS);
