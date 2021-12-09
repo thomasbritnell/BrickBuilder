@@ -15,7 +15,7 @@
 #endif
 
 /**
- * @brief Taken from lecture code! Not our work. 
+ * @brief Taken from Tutorial 6 provided by prof. 
  * 
  * @param file 
  * @param width 

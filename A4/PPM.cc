@@ -1,6 +1,7 @@
 #include "header/PPM.h"
 #include <stdio.h>
 #include <stdlib.h>
+//Taken from Tutorial 6 provided by prof
 
 GLubyte * LoadPPM(char* file, int* width, int* height) {
     GLubyte* img;

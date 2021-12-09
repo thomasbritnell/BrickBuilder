@@ -21,6 +21,8 @@
 
 #include "header/PPM.h"
 
+const int LIGHT_RADIUS = 3;
+
 int window_size_x = 800;
 int window_size_y = 800;
 
@@ -30,16 +32,17 @@ Vec3D camUp = Vec3D(0,1,0);
 Camera camera;
 
 bool alt; //control pressed
-bool shift;
+bool shift; //shift pressed
 bool alt_shift; //both control and shift pressed
 
-Point3D initialMiddleClickPosition;
+Point3D initialMiddleClickPosition; //used for the camera motion with the mouse
 float previousMiddleClickPosition[2];
 
 bool leftClick;
 bool middleClick;
 bool rightClick;
 
+//Lights 
 float selectedLight = 0;
 bool lights_on = true;
 float lightPos[2][4] = {{0,50,-50,1},{0,50,50,1}};
@@ -57,9 +60,14 @@ std::vector<Object*> selectedObjects;
 Vec3D cursorRay = Vec3D();
 Plane ground = Plane(Point3D(0,0,0),Vec3D(0,1,0));
 
+//The ray created when the mouse is clicked
 GLdouble start[3] = {0,0,0};
 GLdouble end[3] = {0,0,0};
 
+/**
+ * @brief Taken from the tutorial 6 code
+ * 
+ */
 struct Image {
     int mWidth;
     int mHeight;
@@ -90,6 +98,11 @@ Image marbleTexture;
 Image floorTexture;
 Image snakeTexture;
 
+/**
+ * @brief called on every frame
+ * 
+ * @param unused 
+ */
 void update(int unused){
 
 
@@ -97,6 +110,10 @@ void update(int unused){
     glutTimerFunc(17,update,0);
 }
 
+/**
+ * @brief reset the scene variables when you press R
+ * 
+ */
 void resetScene(){
     objects.clear();
     selectedObjects.clear();
@@ -110,6 +127,11 @@ void resetScene(){
 
 }
 
+/**
+ * @brief initialize the scene variables
+ * 
+ * @param data 
+ */
 void loadScene(float* data){
      
 
@@ -141,6 +163,10 @@ void loadScene(float* data){
 
 }
 
+/**
+ * @brief draw the light
+ * 
+ */
 void drawLight(){
     glPushMatrix();
     //glLoadIdentity();
@@ -149,11 +175,83 @@ void drawLight(){
     glLightfv(GL_LIGHT0, GL_AMBIENT, amb); 
     glLightfv(GL_LIGHT0, GL_SPECULAR, spc);
 
+    if (lights_on){
+        if (selectedLight ==0){
+            float amb[] ={ 0.05f,0.05f,0.0f,1.0f };
+            float diff[] ={ 0.5f,0.4f,0.4f,1.0f};
+            float spec[] ={0.7f,0.7f,0.04f,1.0f };
+            float shine =  10.0f;
+
+            glMaterialfv(GL_FRONT_AND_BACK,GL_AMBIENT,amb);
+            glMaterialfv(GL_FRONT_AND_BACK,GL_DIFFUSE,diff);
+            glMaterialfv(GL_FRONT_AND_BACK,GL_SPECULAR,spec);
+            glMaterialfv(GL_FRONT_AND_BACK,GL_SHININESS,&shine);
+        }else{
+            float amb[] ={ 0.0f,0.0f,0.0f,1.0f };
+            float diff[] ={ 0.5f,0.4f,0.4f,1.0f};
+            float spec[] ={0.0f,0.00f,0.00f,1.0f };
+            float shine =  10.0f;
+
+            glMaterialfv(GL_FRONT_AND_BACK,GL_AMBIENT,amb);
+            glMaterialfv(GL_FRONT_AND_BACK,GL_DIFFUSE,diff);
+            glMaterialfv(GL_FRONT_AND_BACK,GL_SPECULAR,spec);
+            glMaterialfv(GL_FRONT_AND_BACK,GL_SHININESS,&shine);
+        }
+        
+            
+    }
+    else{
+         if (selectedLight == 0){
+            
+            glColor3f(1.0,1.0,0.1);
+        }else{
+            
+            
+            glColor3f(0.1,0.1,0.1);
+        }
+    }
     
     glTranslatef(lightPos[0][0],lightPos[0][1],lightPos[0][2]);
-    glutSolidSphere(3,16,16);
+    glutSolidSphere(LIGHT_RADIUS,16,16);
 
     glPopMatrix();
+
+
+    if (lights_on){
+        if (selectedLight ==1){
+            float amb[] ={ 0.05f,0.05f,0.0f,1.0f };
+            float diff[] ={ 0.5f,0.4f,0.4f,1.0f};
+            float spec[] ={0.7f,0.7f,0.04f,1.0f };
+            float shine =  10.0f;
+
+            glMaterialfv(GL_FRONT_AND_BACK,GL_AMBIENT,amb);
+            glMaterialfv(GL_FRONT_AND_BACK,GL_DIFFUSE,diff);
+            glMaterialfv(GL_FRONT_AND_BACK,GL_SPECULAR,spec);
+            glMaterialfv(GL_FRONT_AND_BACK,GL_SHININESS,&shine);
+        }else{
+            float amb[] ={ 0.0f,0.0f,0.0f,1.0f };
+            float diff[] ={ 0.5f,0.4f,0.4f,1.0f};
+            float spec[] ={0.0f,0.00f,0.00f,1.0f };
+            float shine =  10.0f;
+
+            glMaterialfv(GL_FRONT_AND_BACK,GL_AMBIENT,amb);
+            glMaterialfv(GL_FRONT_AND_BACK,GL_DIFFUSE,diff);
+            glMaterialfv(GL_FRONT_AND_BACK,GL_SPECULAR,spec);
+            glMaterialfv(GL_FRONT_AND_BACK,GL_SHININESS,&shine);
+        }
+        
+            
+    }
+    else{
+        if (selectedLight == 1){
+            
+            glColor3f(1.0,1.0,0.1);
+        }else{
+            
+            
+            glColor3f(0.1,0.1,0.1);
+        }
+    }
 
     glPushMatrix();
     //glLoadIdentity();
@@ -164,11 +262,15 @@ void drawLight(){
 
     
     glTranslatef(lightPos[1][0],lightPos[1][1],lightPos[1][2]);
-    glutSolidSphere(3,16,16);
+    glutSolidSphere(LIGHT_RADIUS,16,16);
 
     glPopMatrix();
 }
 
+/**
+ * @brief Draw the x y and z axies
+ * 
+ */
 void drawAxis(){
     float size = 100.0f;
 
@@ -236,7 +338,10 @@ void drawAxis(){
     glPopMatrix();
 }
 
-
+/**
+ * @brief draw the platform that everything is drawn to
+ * 
+ */
 void drawFloor(){
 
     float size = 100.0f;
@@ -413,33 +518,10 @@ void drawSelection(){
     for (auto selectedObject: selectedObjects){
         glPushMatrix();
         glTranslatef(selectedObject->position.mX, selectedObject->position.mY, selectedObject->position.mZ);
-
-    //rotation order should be zxy
-        // glRotatef(selectedObject->rotation.mZ*45, 0,0,1);
-        // glRotatef(selectedObject->rotation.mX*45, 1,0,0);
-        // glRotatef(selectedObject->rotation.mY*45, 0,1,0);
-
+        
         selectedObject->calculateMaxScale();
 
 
-    // switch(selectedObject->type){
-    //     case ObjectType::teapot:
-    //         glPushMatrix();
-    //         glTranslatef(0.1,0,0);
-    //         glScalef(1.6,0.8,1.0);
-    //         glutWireCube(2);
-    //         glPopMatrix();
-    //         break;
-    //     case ObjectType::torus:
-    //         glPushMatrix();
-    //         glScalef(1.5,1.5,0.5);
-    //         glutWireCube(2);
-    //         glPopMatrix();
-    //         break;
-    //     default:
-    //         glutWireCube(2); // temp
-    //         break;
-    // }
         glutWireCube(selectedObject->maxScale*2.5);
         
         glPopMatrix();
@@ -448,10 +530,6 @@ void drawSelection(){
 
 
 void DrawScene(){
-   
-    
-    
-
     
     //order should be zxy
     glRotatef(camera.rotation[1], 0,0,1);
@@ -490,6 +568,7 @@ void printInstructions(){
     "z, x, or c to translate the selected object in the z, x, and y directions. (Press shift at the same time to move in negative directions.)\n"
     "b, n, or m to rotate the selected object in the z, x, and y directions. (Press shift at the same time to reverse the rotations.)\n"
     "Click the left mouse button to select an object.\n"
+    "Click the left mouse button while pressing shift to select multiple objects!\n"
     "Click and hold the middle mouse button to move around the scene.\n"
     "Click the right mouse button to delete an object.\n";
     std::cout << instr << std::endl;
@@ -541,12 +620,21 @@ void display(void)
 	glutSwapBuffers();
 }
 
+/**
+ * @brief get whether alt shift or both are pressed
+ * 
+ */
 void getModifiers(){
     alt = (glutGetModifiers() == GLUT_ACTIVE_ALT);//scale
     shift = (glutGetModifiers() == GLUT_ACTIVE_SHIFT);
     alt_shift = (glutGetModifiers() == (GLUT_ACTIVE_ALT|GLUT_ACTIVE_SHIFT));//undo scale 
 }
 
+/**
+ * @brief collects the scene data and formats it as part of the data array to be saved to a file
+ * 
+ * @param data 
+ */
 void prepareDataForSave(float* data){
 
 
@@ -926,6 +1014,13 @@ void specialkbd(int key, int x, int y){
     }
 }
 
+/**
+ * @brief return the 3d vector computed from the mouse click position to the scene in the modelview
+ * 
+ * @param x 
+ * @param y 
+ * @return Vec3D 
+ */
 Vec3D computeMouseRay(int x, int y){
     //adapted from https://nehe.gamedev.net/article/using_gluunproject/16013/
 
@@ -954,6 +1049,13 @@ Vec3D computeMouseRay(int x, int y){
     return newRay;
 }
 
+/**
+ * @brief checks whether an object is in the list of selected objects
+ * 
+ * @param obj 
+ * @return true 
+ * @return false 
+ */
 bool inSelectedObjects(Object* obj){
     for(auto &object: selectedObjects){
         if(obj == object){
@@ -964,7 +1066,7 @@ bool inSelectedObjects(Object* obj){
 }
 
 /**
- * @brief 
+ * @brief choose the object closest to the mouse ray
  * 
  * @param shift if shift is down, selects mutliple objects
  */
@@ -989,6 +1091,10 @@ void selectClosestObject(bool shift){
     }
 }
 
+/**
+ * @brief delete the object closest to the mouse ray
+ * 
+ */
 void deleteClosestObject(){
     if (objects.size() == 0){return;}
 
@@ -1007,8 +1113,10 @@ void deleteClosestObject(){
             }
         }
     }
-    selectedObjects.clear(); //clear pointers
-    objects.erase(toDelete);
+    if (hit){
+        selectedObjects.clear(); //clear pointers
+        objects.erase(toDelete);
+    }
 }
 
 

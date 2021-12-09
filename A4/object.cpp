@@ -24,8 +24,8 @@ void Object::calculateMaxScale(){
 
 void Object::allignBoundingPlanes(){
 
-    maxP = Point3D(1.5*(maxScale*0.9)+position.mX,1.5*(maxScale*0.9)+position.mY,1.5*(maxScale*0.9)+position.mZ);
-    minP = Point3D(-1.5*(maxScale*0.9)+position.mX,-1.5*(maxScale*0.9)+position.mY,-1.5*(maxScale*0.9)+position.mZ);
+    maxP = Point3D(1.5*(maxScale*0.85)+position.mX,1.5*(maxScale*0.85)+position.mY,1.5*(maxScale*0.85)+position.mZ);
+    minP = Point3D(-1.5*(maxScale*0.85)+position.mX,-1.5*(maxScale*0.85)+position.mY,-1.5*(maxScale*0.85)+position.mZ);
     
     boundingPlanes[0] = Plane(Point3D(maxP.mX,0,0),Vec3D(1,0,0));
     boundingPlanes[1] = Plane(Point3D(0,maxP.mY,0),Vec3D(0,1,0));
