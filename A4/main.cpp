@@ -1086,8 +1086,7 @@ void selectClosestObject(bool shift){
                     selectedObjects.push_back(&object);
                 }
                 closestDist = cursorRay.start.distanceTo(object.closestRayIntercept);
-                std::cout << "Contact: " << object.closestRayIntercept.mX << "," << object.closestRayIntercept.mY << "," << object.closestRayIntercept.mZ << std::endl;
-            }
+                }
         }
     }
 }
