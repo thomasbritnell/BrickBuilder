@@ -8,28 +8,18 @@ num_of_objects
 object1_x
 object1_y
 object1_z
-object1_rot_x
-object1_rot_y
-object1_rot_z
-object1_scale_x
-object1_scale_y
-object1_scale_z
+object1_orientation
 object1_material
-object1_type
+object1_mesh
 .
 .
 .
 objectN_x
 objectN_y
 objectN_z
-objectN_rot_x
-objectN_rot_y
-objectN_rot_z
-objectN_scale_x
-objectN_scale_y
-objectN_scale_z
+objectN_orientation
 objectN_material
-objectN_type
+objectN_mesh
 */
 
 
