@@ -1,5 +1,5 @@
-Thomas Britnell 400129897
-Eitan Yehuda 400117972
+Thomas Britnell
+Eitan Yehuda 
 
 
 Graphics Final project 2021
